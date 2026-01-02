@@ -1,86 +1,131 @@
 "use client";
-import { useEffect, useState, useRef } from "react";
+import { useEffect, useState, useRef, useCallback } from "react";
 import BalloonFloating from "./BalloonFloating";
 
 export default function Main() {
   const [balloons, setBalloons] = useState([]);
   const containerRef = useRef(null);
+  const coinsRef = useRef([]);
 
-  useEffect(() => {
-    const generateBalloons = () => {
-      if (!containerRef.current) return;
+  const generateBalloons = useCallback((coins) => {
+    if (!containerRef.current || coins.length === 0) return;
 
-      const W = window.innerWidth;
-      const H = window.innerHeight;
+    const W = window.innerWidth;
+    const H = window.innerHeight;
 
-      const minSize = 120;
-      const maxSize = 220;
+    // 🔒 extract absolute % changes (numbers only)
+    const changes = coins.map(c =>
+      Math.abs(Number(c.percent_change_24h)) || 0
+    );
 
-      const totalBalloons = 50;
-      const aspectRatio = W / H;
-      const rows = Math.round(Math.sqrt(totalBalloons / aspectRatio));
-      const cols = Math.ceil(totalBalloons / rows);
+    const minChange = Math.min(...changes);
+    const maxChange = Math.max(...changes);
 
-      const spacingX = W / cols;
-      const spacingY = H / rows;
+    const MIN_SIZE = 100;
+    const MAX_SIZE = 400;
 
-      const colors = [
-        "#FF6B6B", "#4ECDC4", "#45B7D1",
-        "#F7DC6F", "#52B788", "#9B59B6",
-      ];
-
-      const arr = [];
-      let count = 0;
-
-      for (let r = 0; r < rows && count < totalBalloons; r++) {
-        for (let c = 0; c < cols && count < totalBalloons; c++) {
-          const depth = Math.random(); // ⭐ FAKE 3D
-
-          const baseSize =
-            minSize + Math.random() * (maxSize - minSize);
-          const size = baseSize * (0.6 + depth * 0.9);
-
-          const baseX = c * spacingX + spacingX / 2;
-          const baseY = r * spacingY + spacingY / 2;
-
-          const offsetX = (Math.random() - 0.5) * spacingX * 0.35;
-          const offsetY = (Math.random() - 0.5) * spacingY * 0.35;
-
-          const x = Math.max(0, Math.min(W - size, baseX + offsetX - size / 2));
-          const y = Math.max(0, Math.min(H - size, baseY + offsetY - size / 2));
-
-          arr.push({
-            size,
-            x,
-            y,
-            depth,
-            color: colors[Math.floor(Math.random() * colors.length)],
-            duration: 14 + (1 - depth) * 14,
-drift: 8 + depth * 16,            // gentle sideways
-floatDistance: 10 + depth * 18,   // soft up/down
-
-            delay: Math.random() * 3,
-          });
-
-          count++;
-        }
-      }
-
-      setBalloons(arr);
+    const mapSize = (change) => {
+      if (maxChange === minChange) return (MIN_SIZE + MAX_SIZE) / 2;
+      return (
+        MIN_SIZE +
+        ((change - minChange) / (maxChange - minChange)) *
+        (MAX_SIZE - MIN_SIZE)
+      );
     };
 
-    generateBalloons();
-    window.addEventListener("resize", generateBalloons);
-    return () => window.removeEventListener("resize", generateBalloons);
+    const total = coins.length;
+    const aspect = W / H;
+    const rows = Math.round(Math.sqrt(total / aspect));
+    const cols = Math.ceil(total / rows);
+
+    const spacingX = W / cols;
+    const spacingY = H / rows;
+
+    const colors = [
+      "#FF6B6B",
+      "#4ECDC4",
+      "#45B7D1",
+      "#F7DC6F",
+      "#52B788",
+      "#9B59B6",
+    ];
+
+    const arr = [];
+    let i = 0;
+
+    for (let r = 0; r < rows && i < total; r++) {
+      for (let c = 0; c < cols && i < total; c++) {
+        const size = mapSize(
+          Math.abs(Number(coins[i].percent_change_24h) || 0)
+        );
+
+        const depth = 0.3 + (i / total) * 0.7; // deterministic depth
+
+        const baseX = c * spacingX + spacingX / 2;
+        const baseY = r * spacingY + spacingY / 2;
+
+        const x = Math.max(0, Math.min(W - size, baseX - size / 2));
+        const y = Math.max(0, Math.min(H - size, baseY - size / 2));
+
+        arr.push({
+          size,
+          x,
+          y,
+          depth,
+          color: colors[i % colors.length],
+          duration: 18 + (1 - depth) * 20,
+          drift: 10 + depth * 18,
+          floatDistance: 14 + depth * 20,
+          delay: (i % 6) * 0.6,
+          coin: coins[i],
+        });
+
+        i++;
+      }
+    }
+
+    setBalloons(arr);
   }, []);
+
+  const shuffleArray = (arr) => {
+    const a = [...arr];
+    for (let i = a.length - 1; i > 0; i--) {
+      const j = Math.floor(Math.random() * (i + 1));
+      [a[i], a[j]] = [a[j], a[i]];
+    }
+    return a;
+  };
+
+
+  useEffect(() => {
+    const fetchData = async () => {
+      const res = await fetch(
+        `${process.env.NEXT_PUBLIC_BACKEND_URL}/api/crypto/all-tickers`
+      );
+      const data = await res.json();
+      const topCoins = shuffleArray(
+        data.tickers.filter(coin => coin.rank <= 50)
+      );
+
+
+      coinsRef.current = topCoins;
+      generateBalloons(topCoins);
+    };
+
+    fetchData();
+
+    const onResize = () => generateBalloons(coinsRef.current);
+    window.addEventListener("resize", onResize);
+
+    return () => window.removeEventListener("resize", onResize);
+  }, [generateBalloons]);
 
   return (
     <div
       ref={containerRef}
-      className="fixed inset-0 w-screen h-screen overflow-hidden bg-gradient-to-b from-sky-300 to-sky-500"
-    >
+      className="fixed inset-0 top-12 w-screen h-screen">
       {balloons.map((b, i) => (
-        <BalloonFloating key={i} {...b} />
+        <BalloonFloating key={b.coin?.id || i} {...b} />
       ))}
     </div>
   );
