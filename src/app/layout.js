@@ -1,5 +1,7 @@
 import { Geist, Geist_Mono } from "next/font/google";
 import "./globals.css";
+import { TimeProvider } from "@/context/TimeContext";
+import { RangeProvider } from "@/context/RangeContext";
 
 const geistSans = Geist({
   variable: "--font-geist-sans",
@@ -22,7 +24,11 @@ export default function RootLayout({ children }) {
       <body
         className={`${geistSans.variable} ${geistMono.variable} antialiased`}
       >
-        {children}
+        <TimeProvider>
+          <RangeProvider>
+            {children}
+          </RangeProvider>
+        </TimeProvider>
       </body>
     </html>
   );

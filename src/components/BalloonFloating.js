@@ -2,6 +2,8 @@
 import { motion } from "framer-motion";
 import Balloon from "./Balloon";
 
+const BASE_SIZE = 200; // reference size for scaling
+
 export default function BalloonFloating({
   size,
   x,
@@ -14,32 +16,36 @@ export default function BalloonFloating({
   delay = 0,
   coin,
 }) {
-  // 🎯 Depth-based tuning
   const speed = 1 + (1 - depth) * 1.8;
   const driftAmount = drift * (0.4 + depth);
   const floatAmount = floatDistance * (0.6 + depth);
 
-  // 🎨 Enhanced color with subtle depth-based brightness
+  // 🌟 Smooth size animation via scale
+  const scale = size / BASE_SIZE;
+
   const enhancedStyle = {
-    width: size,
-    height: size,
+    width: BASE_SIZE,
+    height: BASE_SIZE,
     position: "absolute",
     left: x,
     top: y,
+    transformOrigin: "center center",
     zIndex: Math.floor(100 + depth * 900),
     pointerEvents: "none",
     willChange: "transform",
-    // Beautiful visual enhancements without opacity reduction
     filter: `brightness(${0.95 + depth * 0.15}) saturate(${1.1 + depth * 0.2})`,
-    // Subtle shadow for depth perception
-    dropShadow: `0 ${4 + depth * 8}px ${12 + depth * 16}px rgba(0, 0, 0, ${0.15 + depth * 0.1})`,
+    dropShadow: `0 ${4 + depth * 8}px ${12 + depth * 16}px rgba(0,0,0,${0.15 + depth * 0.1})`,
   };
 
   return (
     <motion.div
+      initial={false} // prevents snapping
       style={enhancedStyle}
       animate={{
-        // 🌬️ Natural air drift (multi-wave)
+        // ✅ Smooth size change
+        scale,
+
+        // 🌬️ Existing animations (unchanged)
         x: [
           0,
           driftAmount * 0.3,
@@ -50,8 +56,6 @@ export default function BalloonFloating({
           -driftAmount * 0.2,
           0,
         ],
-
-        // 🎈 Endless vertical float (never stuck)
         y: [
           0,
           -floatAmount * 0.25,
@@ -61,8 +65,6 @@ export default function BalloonFloating({
           -floatAmount * 0.35,
           0,
         ],
-
-        // 🌀 Soft rotational turbulence
         rotate: [
           depth * 0.8,
           depth * 2.2,
@@ -71,18 +73,25 @@ export default function BalloonFloating({
           -depth * 2,
           depth * 0.6,
         ],
-
-        // 🔬 Micro breathing
-        scale: [1, 1.01, 1.015, 1.01, 1],
       }}
       transition={{
+        // ✅ Spring animation for smooth size changes
+        scale: {
+          type: "spring",
+          stiffness: 120,
+          damping: 22,
+          mass: 0.7,
+        },
+
+        // 🌬️ Existing transitions
         duration: duration * speed,
         delay,
         repeat: Infinity,
         ease: "easeInOut",
       }}
     >
-      <Balloon size={size} color={color} coin={coin} />
+      {/* Balloon rendered at BASE_SIZE, scale handles the size change */}
+      <Balloon size={BASE_SIZE} color={color} coin={coin} />
     </motion.div>
   );
 }

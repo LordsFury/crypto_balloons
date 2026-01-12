@@ -1,6 +1,8 @@
+import { useTime } from '@/context/TimeContext';
 import React from 'react'
 
 const Balloon = ({ size, color, coin }) => {
+    const time = useTime().time;
     const isLarge = size > 110;
 
     const imageSize = isLarge ? 650 : 1000;
@@ -9,6 +11,14 @@ const Balloon = ({ size, color, coin }) => {
 
     const symbolY = imageY - 200;
     const percentY = imageY + imageSize + 300;
+
+    const timeMap = {
+        hour: '1h',
+        day: '24h',
+        week: '7d',
+        month: '30d',
+        year: '1y',
+    };
 
     return (
         <svg
@@ -81,21 +91,21 @@ const Balloon = ({ size, color, coin }) => {
                         {coin.symbol}
                     </text>
 
-                    {coin.percent_change_24h !== undefined && (
+                    {coin[`percent_change_${timeMap[time]}`] !== undefined && (
                         <g filter="url(#shadow)">
                             <ellipse
                                 cx="2000"
                                 cy={percentY - 60}
                                 rx="550"
                                 ry="160"
-                                fill={coin.percent_change_24h >= 0 ? "#10b981" : "#ef4444"}
+                                fill={coin[`percent_change_${timeMap[time]}`] >= 0 ? "#10b981" : "#ef4444"}
                             />
                             <ellipse
                                 cx="2000"
                                 cy={percentY - 60}
                                 rx="480"
                                 ry="120"
-                                fill={coin.percent_change_24h >= 0 ? "#34d399" : "#f87171"}
+                                fill={coin[`percent_change_${timeMap[time]}`] >= 0 ? "#34d399" : "#f87171"}
                                 opacity="0.6"
                             />
 
@@ -105,10 +115,10 @@ const Balloon = ({ size, color, coin }) => {
                                 textAnchor="middle"
                                 fontSize={isLarge ? "200" : "240"}
                                 fontWeight="900"
-                                fill={coin.percent_change_24h >= 0 ? "#000000" : "#ffffff"}
+                                fill={coin[`percent_change_${timeMap[time]}`] >= 0 ? "#000000" : "#ffffff"}
                                 fontFamily="Arial, sans-serif"
                             >
-                                {coin.percent_change_24h >= 0 ? '▲' : '▼'} {Math.abs(coin.percent_change_24h).toFixed(1)}%
+                                {coin[`percent_change_${timeMap[time]}`] >= 0 ? '▲' : '▼'} {Math.abs(coin[`percent_change_${timeMap[time]}`]).toFixed(1)}%
                             </text>
                         </g>
                     )}
