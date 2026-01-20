@@ -1,27 +1,34 @@
 "use client";
 import { useEffect, useState, useRef, useCallback } from "react";
+import { AnimatePresence } from "framer-motion";
 import BalloonFloating from "./BalloonFloating";
 import { useTime } from "@/context/TimeContext";
 import { useRange } from "@/context/RangeContext";
 
 export default function Main() {
   const [balloons, setBalloons] = useState([]);
-  const containerRef = useRef(null);
+  const [selectedCoin, setSelectedCoin] = useState(null);
   const staticRef = useRef([]);
   const time = useTime().time;
   const range = useRange().range;
+  const allCoinsRef = useRef(null);
 
-  // Parse the range string into min and max rank
-const parseRange = (range) => {
-  if (!range) return [1, 50]; // default range
-  if (range.includes("-")) {
-    const [min, max] = range.split("-").map(v => parseInt(v.trim()));
-    return [min, max];
-  }
-  // if single number like "50", treat as 1-50
-  return [1, parseInt(range)];
-};
+  const handleBalloonClick = (coin) => {
+    setSelectedCoin(coin);
+  };
 
+  const closePopup = () => {
+    setSelectedCoin(null);
+  };
+
+  const parseRange = (range) => {
+    if (!range) return [1, 50];
+    if (range.includes("-")) {
+      const [min, max] = range.split("-").map(v => parseInt(v.trim()));
+      return [min, max];
+    }
+    return [1, parseInt(range)];
+  };
 
   const timeMap = {
     hour: "1h",
@@ -48,7 +55,7 @@ const parseRange = (range) => {
     };
   };
 
-  // 🔒 FULL GENERATION (ONCE)
+  // 🔒 FULL GENERATION (ONCE PER RANGE)
   const generateBalloons = useCallback((coins) => {
     const W = window.innerWidth;
     const H = window.innerHeight;
@@ -85,7 +92,6 @@ const parseRange = (range) => {
         const size = mapSize(change);
         const depth = 0.3 + (i / total) * 0.7;
 
-        // 🔒 STORE CENTER POSITION
         const cx = c * spacingX + spacingX / 2;
         const cy = r * spacingY + spacingY / 2;
 
@@ -114,19 +120,24 @@ const parseRange = (range) => {
   useEffect(() => {
     if (!staticRef.current.length) return;
 
-    const mapSize = getSizeMapper(
-      staticRef.current.map(b => b.coin)
-    );
+    const getBalloonSize = (percent) => {
+      const p = Math.abs(percent);
+
+      if (p < 2) return 90;     // tiny
+      if (p < 5) return 120;    // small
+      if (p < 10) return 160;   // medium
+      if (p < 20) return 220;   // large
+      return 300;               // huge
+    };
 
     setBalloons(prev =>
       prev.map(b => ({
         ...b,
-        size: mapSize(
-          Math.abs(
-            Number(
-              b.coin[`percent_change_${timeMap[time]}`]
-            )
-          ) || 0
+        size: getBalloonSize(
+          Number(
+            b.coin[`percent_change_${timeMap[time]}`]
+          )
+          || 0
         ),
       }))
     );
@@ -139,12 +150,23 @@ const parseRange = (range) => {
       );
       const data = await res.json();
 
-      generateBalloons(
-        data.tickers.filter(c => {
-          const [min, max] = parseRange(range);
-          return c.rank >= min && c.rank <= max;
-        })
+      // 🔒 SHUFFLE ONCE (REFRESH ONLY)
+      if (!allCoinsRef.current) {
+        const shuffled = [...data.tickers];
+        for (let i = shuffled.length - 1; i > 0; i--) {
+          const j = Math.floor(Math.random() * (i + 1));
+          [shuffled[i], shuffled[j]] = [shuffled[j], shuffled[i]];
+        }
+        allCoinsRef.current = shuffled;
+      }
+
+      const [min, max] = parseRange(range);
+
+      const filtered = allCoinsRef.current.filter(
+        c => c.rank >= min && c.rank <= max
       );
+
+      generateBalloons(filtered);
     };
 
     fetchData();
@@ -152,32 +174,79 @@ const parseRange = (range) => {
 
   return (
     <div
-      ref={containerRef}
       className="fixed inset-0 top-12 w-screen h-screen"
     >
-      {balloons.map((b, i) => {
-        const W = window.innerWidth;
-        const H = window.innerHeight;
+      <AnimatePresence mode="sync">
+        {balloons.map((b, i) => {
+          const W = window.innerWidth;
+          const H = window.innerHeight;
 
-        const safeCx = Math.min(
-          Math.max(b.cx, b.size / 2),
-          W - b.size / 2
-        );
+          const VISUAL_SIZE = b.size;
 
-        const safeCy = Math.min(
-          Math.max(b.cy, b.size / 2),
-          H - b.size / 2
-        );
+          const safeCx = Math.min(
+            Math.max(b.cx, VISUAL_SIZE / 2),
+            W - VISUAL_SIZE / 2
+          );
 
-        return (
-          <BalloonFloating
-            key={b.coin?.id || i}
-            {...b}
-            x={safeCx - b.size / 2}
-            y={safeCy - b.size / 2}
-          />
-        );
-      })}
+          const safeCy = Math.min(
+            Math.max(b.cy, VISUAL_SIZE / 2),
+            H - VISUAL_SIZE / 2
+          );
+          return (
+            <BalloonFloating
+              key={`${range}-${b.coin?.id || i}`}
+              {...b}
+              x={safeCx - VISUAL_SIZE / 2}
+              y={safeCy - VISUAL_SIZE / 2}
+              time={time}
+              onBalloonClick={handleBalloonClick}
+            />
+          );
+        })}
+      </AnimatePresence>
+
+      {/* Popup/Modal for selected coin */}
+      {selectedCoin && (
+        <div
+          className="fixed inset-0 bg-black/50 flex items-center justify-center z-[9999]"
+          onClick={closePopup}
+        >
+          <div
+            className="bg-white rounded-lg p-6 max-w-md w-full mx-4 shadow-2xl"
+            onClick={(e) => e.stopPropagation()}
+          >
+            <div className="flex justify-between items-start mb-4">
+              <h2 className="text-2xl font-bold">{selectedCoin.name}</h2>
+              <button
+                onClick={closePopup}
+                className="text-gray-500 hover:text-gray-700 text-2xl"
+              >
+                ×
+              </button>
+            </div>
+            {selectedCoin.image && (
+              <img
+                src={selectedCoin.image}
+                alt={selectedCoin.name}
+                className="w-16 h-16 mx-auto mb-4"
+              />
+            )}
+            <div className="space-y-2">
+              <p><strong>Symbol:</strong> {selectedCoin.symbol}</p>
+              <p><strong>Rank:</strong> #{selectedCoin.rank}</p>
+              {selectedCoin.percent_change_24h !== undefined && (
+                <p>
+                  <strong>24h Change:</strong>{" "}
+                  <span className={selectedCoin.percent_change_24h >= 0 ? "text-green-600" : "text-red-600"}>
+                    {selectedCoin.percent_change_24h >= 0 ? "+" : ""}
+                    {selectedCoin.percent_change_24h.toFixed(2)}%
+                  </span>
+                </p>
+              )}
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 }

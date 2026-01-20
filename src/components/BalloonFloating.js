@@ -1,10 +1,12 @@
 "use client";
-import { motion } from "framer-motion";
+import { motion, useSpring } from "framer-motion";
+import { useEffect, useRef, useState } from "react";
 import Balloon from "./Balloon";
 
-const BASE_SIZE = 200; // reference size for scaling
+const BASE_SIZE = 200;
+const CLICK_THRESHOLD = 8;
 
-export default function BalloonFloating({
+const BalloonFloating = ({
   size,
   x,
   y,
@@ -15,83 +17,99 @@ export default function BalloonFloating({
   floatDistance = 35,
   delay = 0,
   coin,
-}) {
-  const speed = 1 + (1 - depth) * 1.8;
-  const driftAmount = drift * (0.4 + depth);
-  const floatAmount = floatDistance * (0.6 + depth);
+  time,
+  onBalloonClick,
+}) => {
+  const pointerStart = useRef({ x: 0, y: 0 });
+  const dragged = useRef(false);
+  const [zIndex, setZIndex] = useState(Math.floor(100 + depth * 900));
 
-  // 🌟 Smooth size animation via scale
-  const scale = size / BASE_SIZE;
+  const targetScale = size / BASE_SIZE;
+  const scale = useSpring(targetScale, { stiffness: 50, damping: 30, mass: 1.2 });
+  const posX = useSpring(x, { stiffness: 40, damping: 30, mass: 1.5 });
+  const posY = useSpring(y, { stiffness: 40, damping: 30, mass: 1.5 });
 
-  const enhancedStyle = {
-    width: BASE_SIZE,
-    height: BASE_SIZE,
-    position: "absolute",
-    left: x,
-    top: y,
-    transformOrigin: "center center",
-    zIndex: Math.floor(100 + depth * 900),
-    pointerEvents: "none",
-    willChange: "transform",
-    filter: `brightness(${0.95 + depth * 0.15}) saturate(${1.1 + depth * 0.2})`,
-    dropShadow: `0 ${4 + depth * 8}px ${12 + depth * 16}px rgba(0,0,0,${0.15 + depth * 0.1})`,
+  // Smoothly update scale when size changes
+  useEffect(() => {
+    scale.set(targetScale);
+  }, [targetScale, scale]);
+
+  // Smoothly update position when x/y changes
+  useEffect(() => {
+    posX.set(x);
+  }, [x, posX]);
+
+  useEffect(() => {
+    posY.set(y);
+  }, [y, posY]);
+
+  const handlePointerDown = (e) => {
+    dragged.current = false;
+    pointerStart.current = { x: e.clientX, y: e.clientY };
+    setZIndex(3000);
+  };
+
+  const handlePointerMove = (e) => {
+    const dx = Math.abs(e.clientX - pointerStart.current.x);
+    const dy = Math.abs(e.clientY - pointerStart.current.y);
+    if (dx > CLICK_THRESHOLD || dy > CLICK_THRESHOLD) {
+      dragged.current = true;
+    }
+  };
+
+  const handlePointerUp = (e) => {
+    if (!dragged.current) {
+      onBalloonClick?.(coin);
+      setZIndex(Math.floor(100 + depth * 900));
+    }
   };
 
   return (
     <motion.div
-      initial={false} // prevents snapping
-      style={enhancedStyle}
-      animate={{
-        // ✅ Smooth size change
+      drag
+      dragMomentum={false}
+      dragElastic={0.12}
+      initial={{ opacity: 0 }}
+      animate={{ opacity: 1 }}
+      exit={{ opacity: 0 }}
+      transition={{ duration: 1.5, ease: "easeInOut" }}
+      style={{
+        width: BASE_SIZE,
+        height: BASE_SIZE,
+        position: "absolute",
+        left: posX,
+        top: posY,
         scale,
-
-        // 🌬️ Existing animations (unchanged)
-        x: [
-          0,
-          driftAmount * 0.3,
-          driftAmount * 0.7,
-          driftAmount * 0.2,
-          -driftAmount * 0.4,
-          -driftAmount * 0.7,
-          -driftAmount * 0.2,
-          0,
-        ],
-        y: [
-          0,
-          -floatAmount * 0.25,
-          -floatAmount * 0.6,
-          -floatAmount,
-          -floatAmount * 0.7,
-          -floatAmount * 0.35,
-          0,
-        ],
-        rotate: [
-          depth * 0.8,
-          depth * 2.2,
-          depth * 1.2,
-          -depth * 1.5,
-          -depth * 2,
-          depth * 0.6,
-        ],
-      }}
-      transition={{
-        // ✅ Spring animation for smooth size changes
-        scale: {
-          type: "spring",
-          stiffness: 120,
-          damping: 22,
-          mass: 0.7,
-        },
-
-        // 🌬️ Existing transitions
-        duration: duration * speed,
-        delay,
-        repeat: Infinity,
-        ease: "easeInOut",
+        zIndex: zIndex,
+        transformOrigin: "center",
+        pointerEvents: "none",
       }}
     >
-      {/* Balloon rendered at BASE_SIZE, scale handles the size change */}
-      <Balloon size={BASE_SIZE} color={color} coin={coin} />
+      <motion.div
+        animate={{
+          y: [0, -floatDistance, 0],
+          x: [0, drift, -drift, 0],
+          rotate: [0, depth * 3, -depth * 3, 0],
+        }}
+        transition={{
+          duration,
+          repeat: Infinity,
+          ease: "easeInOut",
+          delay,
+        }}
+      >
+        <Balloon
+          size={BASE_SIZE}
+          color={color}
+          coin={coin}
+          time={time}
+          onPointerDown={handlePointerDown}
+          onPointerMove={handlePointerMove}
+          onPointerUp={handlePointerUp}
+        />
+      </motion.div>
     </motion.div>
   );
-}
+};
+
+export default BalloonFloating;
