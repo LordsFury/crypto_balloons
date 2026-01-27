@@ -170,15 +170,28 @@ const Balloon = ({ size, color, coin, time, onPointerDown, onPointerMove, onPoin
                 <path fillRule="evenodd" fill="url(#balloonLight)" opacity="0.5" d="M2000.44 448.27c-102.19-1.12-423.58 73.89-582.85 201.72-230.46 179.81-370.61 474.73-350.49 767.96 9.76 95.49 40.85 187.56 81.44 274.11 42.46 92.7 95.46 180.17 152.94 264.21 90.97 125.19 367.31 406.69 397.32 470.98 39.48 85.2 78.88 170.45 117.52 255.95h368.27c38.65-85.5 78.05-170.75 117.52-255.95 30.01-64.29 306.34-345.79 397.31-470.98 57.48-84.04 110.48-171.51 152.94-264.21 40.6-86.55 71.69-178.62 81.45-274.11 20.12-293.23-119.99-588.15-350.46-767.96-159.28-127.83-480.66-202.84-582.86-201.72z" />
             </g>
             {coin?.image && (
-                <image
-                    href={coin.image}
-                    x={imageX}
-                    y={imageY}
-                    width={imageSize}
-                    height={imageSize}
-                    preserveAspectRatio="xMidYMid meet"
-                    style={{ pointerEvents: "none" }}
-                />
+                <>
+                    <defs>
+                        <clipPath id={`coinClip-${coin.id}`}>
+                            <circle
+                                cx={imageX + imageSize / 2}
+                                cy={imageY + imageSize / 2}
+                                r={imageSize / 2}
+                            />
+                        </clipPath>
+                    </defs>
+
+                    <image
+                        href={coin.image}
+                        x={imageX}
+                        y={imageY}
+                        width={imageSize}
+                        height={imageSize}
+                        preserveAspectRatio="xMidYMid meet"
+                        clipPath={`url(#coinClip-${coin.id})`}
+                        style={{ pointerEvents: "none" }}
+                    />
+                </>
             )}
 
             {isLarge && coin?.symbol && (

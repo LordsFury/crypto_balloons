@@ -1,9 +1,11 @@
 "use client";
 import { useEffect, useState, useRef, useCallback } from "react";
-import { AnimatePresence } from "framer-motion";
+import { AnimatePresence, motion } from "framer-motion";
 import BalloonFloating from "./BalloonFloating";
 import { useTime } from "@/context/TimeContext";
 import { useRange } from "@/context/RangeContext";
+import ChangeItem from "./ChangeItem";
+import Image from "next/image";
 
 export default function Main() {
   const [balloons, setBalloons] = useState([]);
@@ -145,6 +147,18 @@ export default function Main() {
     );
   }, [time]);
 
+  const formatNumber = (num) => {
+    if (!num) return "0";
+
+    if (num >= 1e12) return (num / 1e12).toFixed(2) + "T";
+    if (num >= 1e9) return (num / 1e9).toFixed(2) + "B";
+    if (num >= 1e6) return (num / 1e6).toFixed(2) + "M";
+    if (num >= 1e3) return (num / 1e3).toFixed(2) + "K";
+
+    return num.toLocaleString();
+  };
+
+
   /* ------------------ render ------------------ */
 
   return (
@@ -176,64 +190,135 @@ export default function Main() {
         })}
       </AnimatePresence>
 
-      {selectedCoin && (
-  <div
-    className="fixed inset-0 bg-black/50 flex items-center justify-center z-[9999]"
-    onClick={closePopup}
-  >
-    <div
-      className="bg-white rounded-lg p-6 max-w-md w-full mx-4 shadow-2xl"
-      onClick={(e) => e.stopPropagation()}
-    >
-      {/* Header */}
-      <div className="flex justify-between items-start mb-4">
-        <h2 className="text-2xl font-bold">{selectedCoin.name}</h2>
-        <button
-          onClick={closePopup}
-          className="text-gray-500 hover:text-gray-700 text-2xl"
-        >
-          ×
-        </button>
-      </div>
-
-      {/* Coin Image */}
-      {selectedCoin.image && (
-        <img
-          src={selectedCoin.image}
-          alt={selectedCoin.name}
-          className="w-16 h-16 mx-auto mb-4"
-        />
-      )}
-
-      {/* Coin Details */}
-      <div className="space-y-2">
-        <p>
-          <strong>Symbol:</strong> {selectedCoin.symbol}
-        </p>
-
-        <p>
-          <strong>Rank:</strong> #{selectedCoin.rank}
-        </p>
-
-        {selectedCoin.percent_change_24h !== undefined && (
-          <p>
-            <strong>24h Change:</strong>{" "}
-            <span
-              className={
-                selectedCoin.percent_change_24h >= 0
-                  ? "text-green-600"
-                  : "text-red-600"
-              }
+      <AnimatePresence>
+        {selectedCoin && (
+          <motion.div
+            className="fixed inset-0 top-16 z-9999 flex items-center justify-center bg-black/60 backdrop-blur-sm"
+            initial={{ opacity: 0 }}
+            animate={{ opacity: 1 }}
+            exit={{ opacity: 0 }}
+            onClick={closePopup}
+          >
+            <motion.div
+              initial={{ scale: 0.85, opacity: 0, y: 40 }}
+              animate={{ scale: 1, opacity: 1, y: 0 }}
+              exit={{ scale: 0.9, opacity: 0, y: 30 }}
+              transition={{ type: "spring", stiffness: 120, damping: 18 }}
+              onClick={(e) => e.stopPropagation()}
+              className="relative w-full max-w-lg mx-4 rounded-2xl bg-white shadow-2xl overflow-hidden"
             >
-              {selectedCoin.percent_change_24h >= 0 ? "+" : ""}
-              {selectedCoin.percent_change_24h.toFixed(2)}%
-            </span>
-          </p>
+              {/* Gradient Header */}
+              <div className="relative bg-linear-to-br from-purple-900 via-blue-700 to-blue-900 p-6 text-white">
+                <div className="absolute right-4 top-4 px-1.5 flex items-center justify-center text-white hover:text-white text-2xl bg-gray-500 rounded-full">
+                  <button
+                    className="-mt-1"
+                    onClick={closePopup}
+                  >
+                    ×
+                  </button>
+                </div>
+
+                <div className="flex items-center gap-4">
+                  {selectedCoin.image && (
+                    <img
+                      src={selectedCoin.image}
+                      alt={selectedCoin.id}
+                      className="w-14 h-14 rounded-full bg-white p-1"
+                    />
+                  )}
+                  <div>
+                    <h2 className="text-2xl font-bold capitalize">
+                      {selectedCoin.id}
+                    </h2>
+                    <p className="text-white">
+                      Rank #{selectedCoin.rank}
+                    </p>
+                  </div>
+                </div>
+              </div>
+
+              {/* Content */}
+              <div className="p-6 space-y-6 text-gray-800">
+                {/* Market Data */}
+                <div className="flex flex-col text-lg gap-4 font-semibold">
+                  <div className="flex justify-between">
+                    <div>
+                      <p className="text-gray-600">Market Cap</p>
+                      <p className="text-center">
+                        ${formatNumber(Number(selectedCoin.market_cap || 0))}
+                      </p>
+                    </div>
+                    <div>
+                      <p className="text-gray-600">24h Volume</p>
+                      <p className="text-center">
+                        ${formatNumber(Number(selectedCoin.volume || 0))}
+                      </p>
+                    </div>
+                  </div>
+                  <div className="flex justify-between">
+                    <div>
+                      <p className="text-gray-600">Circulating Supply</p>
+                      <p className="text-center">
+                        {formatNumber(Number(selectedCoin.circulating_supply || 0))}
+                      </p>
+                    </div>
+                    <div>
+                      <p className="text-gray-600">Max Supply</p>
+                      <p className="text-center">
+                        {selectedCoin.max_supply
+                          ? formatNumber(Number(selectedCoin.max_supply))
+                          : "∞"}
+                      </p>
+                    </div>
+                  </div>
+                </div>
+
+                <div className="flex justify-between gap-3 mt-4 w-full">
+                  <ChangeItem label="Hour" value={selectedCoin.percent_change_1h} />
+                  <ChangeItem label="Day" value={selectedCoin.percent_change_24h} />
+                  <ChangeItem label="Week" value={selectedCoin.percent_change_7d} />
+                  <ChangeItem label="Month" value={selectedCoin.percent_change_30d} />
+                  <ChangeItem label="Year" value={selectedCoin.percent_change_1y} />
+                </div>
+
+                {/* External Links */}
+                <div>
+                  <p className="font-semibold mb-2">Links</p>
+                  <div className="flex flex-wrap gap-3">
+                    <a
+                      href={`https://www.coingecko.com/en/coins/${selectedCoin.id}`}
+                      target="_blank"
+                      rel="noopener noreferrer"
+                      className="px-2 py-2 rounded-full bg-gray-400 hover:bg-gray-300"
+                    >
+                      <Image src="/assets/coingecko.png" alt="coingecko" width={32} height={28} />
+                    </a>
+
+                    <a
+                      href={`https://coinmarketcap.com/currencies/${selectedCoin.id}/` || `https://coinmarketcap.com/currencies/${selectedCoin.symbol}/`}
+                      target="_blank"
+                      rel="noopener noreferrer"
+                      className="px-2 py-2 rounded-full bg-gray-400 hover:bg-gray-300"
+                    >
+                      <Image src="/assets/cmc.png" alt="CMC" width={32} height={28} className="rounded-lg" />
+                    </a>
+
+                    <a
+                      href={`https://www.tradingview.com/chart/?symbol=${selectedCoin.symbol}`}
+                      target="_blank"
+                      rel="noopener noreferrer"
+                      className="px-2 py-2 rounded-full bg-gray-400 hover:bg-gray-300"
+                    >
+                      <Image src="/assets/trading.png" alt="CMC" width={32} height={28} />
+                    </a>
+                  </div>
+                </div>
+              </div>
+            </motion.div>
+          </motion.div>
         )}
-      </div>
-    </div>
-  </div>
-)}
+      </AnimatePresence>
+
 
     </div>
   );
