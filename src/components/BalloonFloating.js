@@ -1,11 +1,27 @@
 "use client";
-import { motion, useSpring } from "framer-motion";
-import { useEffect, useRef, useState } from "react";
+import { motion, useMotionValue } from "framer-motion";
+import React, { useEffect, useRef, useMemo, useState, useCallback } from "react";
 import Balloon from "./Balloon";
+import "../app/globals.css";
+import { registerBalloon, unregisterBalloon } from "./useBalloonEngine";
+import { useBalloonDrag } from "@/hooks/useBalloonDrag";
+import { useBalloonCollision } from "@/hooks/useBalloonCollision";
+import { useBalloonSpring } from "@/hooks/useBalloonSpring";
+import { balloonPositionManager } from "@/utils/balloonPositionManager";
+import { 
+  BASE_SIZE, 
+  OPACITY_TRANSITION_DURATION, 
+  DRAG_MOMENTUM, 
+  DRAG_ELASTIC,
+  DRAG_TRANSITION_DURATION,
+  INERTIA_POWER,
+  INERTIA_TIME_CONSTANT
+} from "@/config/balloonConstants";
 
-const BASE_SIZE = 200;
-const CLICK_THRESHOLD = 8;
-
+/**
+ * BalloonFloating Component
+ * Handles individual balloon rendering, animations, drag interactions, and collisions
+ */
 const BalloonFloating = ({
   size,
   x,
@@ -20,96 +36,201 @@ const BalloonFloating = ({
   time,
   onBalloonClick,
 }) => {
-  const pointerStart = useRef({ x: 0, y: 0 });
-  const dragged = useRef(false);
-  const [zIndex, setZIndex] = useState(Math.floor(100 + depth * 900));
+  const elRef = useRef(null);
+  
+  // Track persistent position offset from being pushed
+  const [persistentOffset, setPersistentOffset] = useState({ x: 0, y: 0 });
+  
+  // Motion values to track drag position
+  const motionX = useMotionValue(0);
+  const motionY = useMotionValue(0);
 
-  const targetScale = size / BASE_SIZE;
-  const scale = useSpring(targetScale, { stiffness: 50, damping: 30, mass: 1.2 });
-  const posX = useSpring(x, { stiffness: 40, damping: 30, mass: 1.5 });
-  const posY = useSpring(y, { stiffness: 40, damping: 30, mass: 1.5 });
+  // Custom hooks for separate concerns
+  const { 
+    isDragging, 
+    zIndex, 
+    handlePointerDown, 
+    handlePointerMove, 
+    handlePointerUp,
+    handleDragStart,
+    handleDragEnd
+  } = useBalloonDrag(onBalloonClick);
+  
+  const { scale, posX, posY } = useBalloonSpring(x, y, size);
+  
+  // Pass balloon ID to collision hook
+  useBalloonCollision(isDragging, elRef, coin?.id);
 
-  // Smoothly update scale when size changes
+  // ✅ register balloon in engine (optimized & stable)
   useEffect(() => {
-    scale.set(targetScale);
-  }, [targetScale, scale]);
+    if (!elRef.current || !coin?.id) return;
 
-  // Smoothly update position when x/y changes
+    registerBalloon(coin.id, elRef.current, {
+      baseX: x,
+      baseY: y,
+      drift,
+      float: floatDistance,
+      scale: size / BASE_SIZE,
+      seed: Math.random() * 1000,
+    });
+
+    return () => unregisterBalloon(coin.id);
+    // ❗ do NOT depend on x/y/size -> avoids re-register storm
+  }, [coin?.id]);
+
+  // Subscribe to position offset changes from the position manager
   useEffect(() => {
-    posX.set(x);
-  }, [x, posX]);
+    if (!coin?.id) return;
 
-  useEffect(() => {
-    posY.set(y);
-  }, [y, posY]);
+    const handleOffsetChange = (offsetX, offsetY) => {
+      setPersistentOffset({ x: offsetX, y: offsetY });
+      // Sync motion values with persistent offset to prevent jumps
+      motionX.set(offsetX);
+      motionY.set(offsetY);
+    };
 
-  const handlePointerDown = (e) => {
-    dragged.current = false;
-    pointerStart.current = { x: e.clientX, y: e.clientY };
-    setZIndex(3000);
-  };
-
-  const handlePointerMove = (e) => {
-    const dx = Math.abs(e.clientX - pointerStart.current.x);
-    const dy = Math.abs(e.clientY - pointerStart.current.y);
-    if (dx > CLICK_THRESHOLD || dy > CLICK_THRESHOLD) {
-      dragged.current = true;
+    // Get initial offset (in case balloon was already pushed)
+    const initialOffset = balloonPositionManager.getOffset(coin.id);
+    if (initialOffset.x !== 0 || initialOffset.y !== 0) {
+      setPersistentOffset(initialOffset);
+      motionX.set(initialOffset.x);
+      motionY.set(initialOffset.y);
     }
-  };
 
-  const handlePointerUp = (e) => {
-    if (!dragged.current) {
-      onBalloonClick?.(coin);
-      setZIndex(Math.floor(100 + depth * 900));
+    // Listen for future changes
+    balloonPositionManager.addListener(coin.id, handleOffsetChange);
+
+    return () => {
+      balloonPositionManager.removeListener(coin.id, handleOffsetChange);
+    };
+  }, [coin?.id, motionX, motionY]);
+
+  // Reset motion values when base position changes (time/range change)
+  // This ensures smooth transitions without jumping back to old positions first
+  useEffect(() => {
+    // When x/y props change (new layout), check if we should reset motion values
+    const currentOffset = balloonPositionManager.getOffset(coin?.id);
+    
+    // If offset is zero (was silently reset), reset motion values too
+    if (currentOffset.x === 0 && currentOffset.y === 0) {
+      // Only reset if motion values aren't already at zero
+      const currentMotionX = motionX.get();
+      const currentMotionY = motionY.get();
+      
+      if (Math.abs(currentMotionX) > 1 || Math.abs(currentMotionY) > 1) {
+        motionX.set(0);
+        motionY.set(0);
+        setPersistentOffset({ x: 0, y: 0 });
+      }
     }
-  };
+  }, [x, y, coin?.id, motionX, motionY]);
+
+  // Handle drag end - store the final drag offset as persistent offset
+  const handleDragEndWithOffset = useCallback((event, info) => {
+    handleDragEnd();
+    
+    if (!coin?.id) return;
+    
+    // Get the final drag offset from Framer Motion
+    const dragOffsetX = motionX.get();
+    const dragOffsetY = motionY.get();
+    
+    // Only update if there's actual movement (not just a click)
+    if (Math.abs(dragOffsetX - persistentOffset.x) > 1 || Math.abs(dragOffsetY - persistentOffset.y) > 1) {
+      // Calculate the delta from current persistent offset
+      const deltaX = dragOffsetX - persistentOffset.x;
+      const deltaY = dragOffsetY - persistentOffset.y;
+      
+      // Store this as the new persistent offset
+      if (Math.abs(deltaX) > 1 || Math.abs(deltaY) > 1) {
+        balloonPositionManager.setOffset(coin.id, deltaX, deltaY);
+      }
+    }
+  }, [coin?.id, handleDragEnd, motionX, motionY, persistentOffset.x, persistentOffset.y]);
+
+  // Initial z-index based on depth
+  const initialZIndex = useMemo(() => Math.floor(100 + depth * 900), [depth]);
+
+  // Calculate drag constraints to keep balloon within viewport
+  const dragConstraints = useMemo(() => {
+    if (typeof window === 'undefined') return {};
+    
+    const padding = 100; // Padding from screen edges
+    return {
+      left: -posX - persistentOffset.x + padding,
+      right: window.innerWidth - posX - persistentOffset.x - BASE_SIZE - padding,
+      top: -posY - persistentOffset.y + padding,
+      bottom: window.innerHeight - posY - persistentOffset.y - BASE_SIZE - padding
+    };
+  }, [posX, posY, persistentOffset.x, persistentOffset.y]);
 
   return (
     <motion.div
       drag
-      dragMomentum={false}
-      dragElastic={0.12}
+      dragConstraints={dragConstraints}
+      dragMomentum={DRAG_MOMENTUM}
+      dragElastic={DRAG_ELASTIC}
+      dragTransition={{ 
+        power: INERTIA_POWER, 
+        timeConstant: INERTIA_TIME_CONSTANT,
+        bounceStiffness: 200,
+        bounceDamping: 20
+      }}
+      onDragStart={handleDragStart}
+      onDragEnd={handleDragEndWithOffset}
+      whileDrag={{ 
+        cursor: "grabbing"
+      }}
       initial={{ opacity: 0 }}
-      animate={{ opacity: 1 }}
+      animate={{ 
+        opacity: 1
+      }}
       exit={{ opacity: 0 }}
-      transition={{ duration: 1.5, ease: "easeInOut" }}
+      transition={{ 
+        opacity: { duration: OPACITY_TRANSITION_DURATION, ease: "easeInOut" }
+      }}
+      data-balloon-id={coin?.id}
       style={{
+        x: motionX,
+        y: motionY,
         width: BASE_SIZE,
         height: BASE_SIZE,
         position: "absolute",
         left: posX,
         top: posY,
         scale,
-        zIndex: zIndex,
+        zIndex: zIndex || initialZIndex,
         transformOrigin: "center",
         pointerEvents: "none",
+        willChange: "transform",
+        backfaceVisibility: "hidden",
       }}
     >
-      <motion.div
-        animate={{
-          y: [0, -floatDistance, 0],
-          x: [0, drift, -drift, 0],
-          rotate: [0, depth * 3, -depth * 3, 0],
-        }}
-        transition={{
-          duration,
-          repeat: Infinity,
-          ease: "easeInOut",
-          delay,
+      <div
+        ref={elRef}
+        className="balloon-float"
+        style={{
+          "--float-y": `${floatDistance}px`,
+          "--float-x": `${drift}px`,
+          "--rotate": `${depth * 3}deg`,
+          animationDuration: `${duration}s`,
+          animationDelay: `${delay}s`,
+          animationPlayState: isDragging ? "paused" : "running",
+          willChange: "transform",
         }}
       >
         <Balloon
-          size={BASE_SIZE}
+          size={size}
           color={color}
           coin={coin}
           time={time}
-          onPointerDown={handlePointerDown}
+          onPointerDown={(e) => handlePointerDown(e, coin)}
           onPointerMove={handlePointerMove}
-          onPointerUp={handlePointerUp}
+          onPointerUp={() => handlePointerUp(coin)}
         />
-      </motion.div>
+      </div>
     </motion.div>
   );
 };
 
-export default BalloonFloating;
+export default React.memo(BalloonFloating);

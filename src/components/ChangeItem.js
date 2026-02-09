@@ -3,7 +3,7 @@ const ChangeItem = ({ label, value }) => {
   const isPositive = isValidNumber && value >= 0;
 
   return (
-    <div className="flex flex-col items-center justify-center py-2 rounded-xl bg-gray-200 backdrop-blur-md shadow-sm w-24">
+    <div className="flex flex-col items-center justify-center py-1 rounded-xl bg-gray-200 backdrop-blur-md shadow-sm w-24">
       {/* Label */}
       <span className="text-xl font-semibold tracking-wide text-gray-600">
         {label}
