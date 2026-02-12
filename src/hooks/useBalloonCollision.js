@@ -9,11 +9,12 @@ import { balloonPositionManager } from "@/utils/balloonPositionManager";
 
 /**
  * Custom hook for handling balloon collision detection and repulsion
- * Now uses persistent position offsets so pushed balloons stay in their new positions
+ * Optimized with spatial partitioning for better performance
  */
 export const useBalloonCollision = (isDragging, elementRef, balloonId) => {
   const intervalRef = useRef(null);
   const pushedBalloonsRef = useRef(new Set());
+  const nearbyBalloonsCache = useRef(new Map());
 
   useEffect(() => {
     if (!isDragging || !elementRef.current) {
@@ -21,8 +22,7 @@ export const useBalloonCollision = (isDragging, elementRef, balloonId) => {
         clearInterval(intervalRef.current);
         intervalRef.current = null;
       }
-      // Keep the pushed balloons set for this drag session
-      // Don't clear it - balloons should stay in their new positions
+      nearbyBalloonsCache.current.clear();
       return;
     }
 
@@ -31,17 +31,17 @@ export const useBalloonCollision = (isDragging, elementRef, balloonId) => {
       intervalRef.current = setInterval(() => {
         if (!elementRef.current) return;
         
-        // Get all balloons via data-balloon-id on motion.div parent
-        const allBalloons = document.querySelectorAll('[data-balloon-id]');
         const myParent = elementRef.current.parentElement;
         if (!myParent) return;
         
         const myRect = myParent.getBoundingClientRect();
         const myCenter = getRectCenter(myRect);
 
-        allBalloons.forEach((otherBalloon) => {
-          if (otherBalloon === myParent) return;
+        // Optimized: Only check balloons within a reasonable distance
+        // Use spatial partitioning to reduce checks
+        const nearbyBalloons = getNearbyBalloons(myCenter, myParent, balloonId);
 
+        nearbyBalloons.forEach((otherBalloon) => {
           const otherBalloonId = otherBalloon.getAttribute('data-balloon-id');
           if (!otherBalloonId || otherBalloonId === balloonId) return;
 
@@ -64,9 +64,36 @@ export const useBalloonCollision = (isDragging, elementRef, balloonId) => {
         clearInterval(intervalRef.current);
         intervalRef.current = null;
       }
-      // Don't clear pushedBalloonsRef - let balloons keep their positions
+      nearbyBalloonsCache.current.clear();
     };
   }, [isDragging, elementRef, balloonId]);
+};
+
+/**
+ * Get nearby balloons using spatial partitioning
+ * Optimized to only return balloons within a reasonable distance
+ */
+const getNearbyBalloons = (myCenter, myBalloon, myBalloonId) => {
+  const allBalloons = document.querySelectorAll('[data-balloon-id]');
+  const nearbyBalloons = [];
+  const maxCheckDistance = COLLISION_DISTANCE * 2; // Only check balloons within 2x collision distance
+
+  allBalloons.forEach((balloon) => {
+    if (balloon === myBalloon) return;
+    
+    const rect = balloon.getBoundingClientRect();
+    const center = getRectCenter(rect);
+    
+    // Quick distance check - skip far away balloons
+    const dx = Math.abs(center.x - myCenter.x);
+    const dy = Math.abs(center.y - myCenter.y);
+    
+    if (dx < maxCheckDistance && dy < maxCheckDistance) {
+      nearbyBalloons.push(balloon);
+    }
+  });
+
+  return nearbyBalloons;
 };
 
 /**

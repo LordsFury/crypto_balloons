@@ -67,25 +67,26 @@ export const LARGE_BALLOON_THRESHOLD = 180;
 
 // Interaction thresholds
 export const CLICK_THRESHOLD = 8;
-export const COLLISION_DISTANCE = 180; // Increased for earlier detection
-export const REPEL_FORCE = 20; // Moderate force for smooth movement
+export const COLLISION_DISTANCE = 160; // Optimized detection distance
+export const REPEL_FORCE = 15; // Optimized repel force
 export const ENABLE_PERSISTENT_PUSH = true; // Enable balloons to stay where pushed
 export const RESET_POSITIONS_ON_TIME_CHANGE = true; // Reset positions when changing time period
+export const USE_SIMPLIFIED_RENDERING = true; // Use simplified balloon rendering for performance
 
-// Animation settings
-export const DEFAULT_DURATION = 18;
-export const DEFAULT_DRIFT = 12;
-export const DEFAULT_FLOAT_DISTANCE = 18;
+// Animation settings - Optimized for performance
+export const DEFAULT_DURATION = 12; // Reduced for smoother performance
+export const DEFAULT_DRIFT = 8; // Reduced drift
+export const DEFAULT_FLOAT_DISTANCE = 12; // Reduced float
 
-// Spring configurations
+// Spring configurations - Optimized for performance
 export const SPRING_CONFIG = {
   highPerf: {
-    scale: { stiffness: 50, damping: 30, mass: 1.2 },
-    position: { stiffness: 40, damping: 30, mass: 1.5 }
+    scale: { stiffness: 80, damping: 25, mass: 0.8 }, // Faster, lighter
+    position: { stiffness: 60, damping: 25, mass: 1.0 } // Faster transitions
   },
   lowPerf: {
-    scale: { stiffness: 30, damping: 40, mass: 1.2 },
-    position: { stiffness: 40, damping: 30, mass: 1.5 }
+    scale: { stiffness: 50, damping: 30, mass: 1.0 },
+    position: { stiffness: 40, damping: 30, mass: 1.2 }
   }
 };
 
@@ -115,13 +116,13 @@ export const TIME_PERIOD_MAP = {
   year: "1y"
 };
 
-// Collision detection interval (ms)
-export const COLLISION_CHECK_INTERVAL = 100;
+// Collision detection interval (ms) - Optimized
+export const COLLISION_CHECK_INTERVAL = 150; // Reduced frequency for better performance
 
-// Animation durations
-export const PERCENT_ANIMATION_DURATION = 800;
-export const OPACITY_TRANSITION_DURATION = 1.5;
-export const REPEL_ANIMATION_DURATION = 0.6;
+// Animation durations - Optimized
+export const PERCENT_ANIMATION_DURATION = 600; // Faster percentage transitions
+export const OPACITY_TRANSITION_DURATION = 0.8; // Faster opacity transitions
+export const REPEL_ANIMATION_DURATION = 0.4; // Faster repel
 
 // Drag physics
 export const DRAG_MOMENTUM = true;

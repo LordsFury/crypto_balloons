@@ -19,7 +19,7 @@ import {
 } from "@/config/balloonConstants";
 
 /**
- * BalloonFloating Component
+ * BalloonFloating Component - Optimized for Performance
  * Handles individual balloon rendering, animations, drag interactions, and collisions
  */
 const BalloonFloating = ({
@@ -106,14 +106,11 @@ const BalloonFloating = ({
   }, [coin?.id, motionX, motionY]);
 
   // Reset motion values when base position changes (time/range change)
-  // This ensures smooth transitions without jumping back to old positions first
   useEffect(() => {
-    // When x/y props change (new layout), check if we should reset motion values
     const currentOffset = balloonPositionManager.getOffset(coin?.id);
     
     // If offset is zero (was silently reset), reset motion values too
     if (currentOffset.x === 0 && currentOffset.y === 0) {
-      // Only reset if motion values aren't already at zero
       const currentMotionX = motionX.get();
       const currentMotionY = motionY.get();
       
@@ -151,11 +148,11 @@ const BalloonFloating = ({
   // Initial z-index based on depth
   const initialZIndex = useMemo(() => Math.floor(100 + depth * 900), [depth]);
 
-  // Calculate drag constraints to keep balloon within viewport
+  // Calculate drag constraints to keep balloon within viewport (memoized)
   const dragConstraints = useMemo(() => {
     if (typeof window === 'undefined') return {};
     
-    const padding = 100; // Padding from screen edges
+    const padding = 80; // Reduced padding for more usable space
     return {
       left: -posX - persistentOffset.x + padding,
       right: window.innerWidth - posX - persistentOffset.x - BASE_SIZE - padding,
@@ -179,15 +176,18 @@ const BalloonFloating = ({
       onDragStart={handleDragStart}
       onDragEnd={handleDragEndWithOffset}
       whileDrag={{ 
-        cursor: "grabbing"
+        cursor: "grabbing",
+        scale: 1.05 // Slight scale on drag for feedback
       }}
-      initial={{ opacity: 0 }}
+      initial={{ opacity: 0, scale: 0.8 }}
       animate={{ 
-        opacity: 1
+        opacity: 1,
+        scale: 1
       }}
-      exit={{ opacity: 0 }}
+      exit={{ opacity: 0, scale: 0.8 }}
       transition={{ 
-        opacity: { duration: OPACITY_TRANSITION_DURATION, ease: "easeInOut" }
+        opacity: { duration: OPACITY_TRANSITION_DURATION, ease: "easeOut" },
+        scale: { duration: 0.3, ease: "easeOut" }
       }}
       data-balloon-id={coin?.id}
       style={{
@@ -204,6 +204,7 @@ const BalloonFloating = ({
         pointerEvents: "none",
         willChange: "transform",
         backfaceVisibility: "hidden",
+        transform: "translateZ(0)" // Force GPU layer
       }}
     >
       <div
