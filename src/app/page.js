@@ -5,7 +5,7 @@ import VideoBackground from "../components/VideoBackground";
 export default function Home() {
   return <>
     <VideoBackground 
-      src="/assets/videos/video5.mp4" 
+      src="/assets/videos/video1.mp4" 
       opacity={1} 
       blur={0} 
     />
