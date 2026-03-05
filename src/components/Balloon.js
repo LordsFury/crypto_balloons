@@ -51,14 +51,12 @@ const Balloon = ({
       viewBox="0 0 4001 4001"
       vectorEffect="non-scaling-stroke"
       fill={color}
-      style={{ display: "block", pointerEvents: "none", willChange: "transform" }}
+      style={{ display: "block", pointerEvents: "none" }}
     >
-      <BalloonDefs color={color} coinId={coin?.id} isPositive={isPositive} />
-      <BalloonStyles />
+      <BalloonDefs color={color} />
       <BalloonShape 
         color={color} 
         isPositive={isPositive}
-        coinId={coin?.id}
         onPointerDown={onPointerDown}
         onPointerMove={onPointerMove}
         onPointerUp={onPointerUp}
@@ -91,92 +89,26 @@ const Balloon = ({
 /**
  * Balloon SVG Definitions (gradients, filters, etc.)
  */
-const BalloonDefs = ({ color, coinId }) => (
+const BalloonDefs = ({ color }) => (
   <defs>
-    <filter id="shadow" x="-50%" y="-50%" width="200%" height="200%">
-      <feDropShadow dx="0" dy="8" stdDeviation="12" floodOpacity="0.3" />
-    </filter>
     <radialGradient id="balloonLight" cx="35%" cy="25%" r="65%">
       <stop offset="0%" stopColor={color} stopOpacity="0.7" />
       <stop offset="45%" stopColor={color} stopOpacity="0.4" />
       <stop offset="100%" stopColor="#000000" stopOpacity="0.2" />
     </radialGradient>
-    <filter id="softGlow" x="-30%" y="-30%" width="160%" height="160%">
-      <feGaussianBlur stdDeviation="18" result="blur" />
-      <feMerge>
-        <feMergeNode in="blur" />
-        <feMergeNode in="SourceGraphic" />
-      </feMerge>
-    </filter>
   </defs>
-);
-
-/**
- * Balloon animation styles
- */
-const BalloonStyles = () => (
-  <style>
-    {`
-      @keyframes glowPositive {
-        0% {
-          filter: drop-shadow(0 0 6px #10b981);
-          opacity: 0.85;
-          transform: scale(1);
-        }
-        50% {
-          filter: drop-shadow(0 0 22px #34d399);
-          opacity: 1;
-          transform: scale(1.05);
-        }
-        100% {
-          filter: drop-shadow(0 0 6px #10b981);
-          opacity: 0.85;
-          transform: scale(1);
-        }
-      }
-
-      @keyframes glowNegative {
-        0% {
-          filter: drop-shadow(0 0 6px #ef4444);
-          opacity: 0.85;
-          transform: scale(1);
-        }
-        50% {
-          filter: drop-shadow(0 0 22px #f87171);
-          opacity: 1;
-          transform: scale(1.05);
-        }
-        100% {
-          filter: drop-shadow(0 0 6px #ef4444);
-          opacity: 0.85;
-          transform: scale(1);
-        }
-      }
-
-      .strip-positive {
-        animation: glowPositive 1.8s ease-in-out infinite;
-        transform-origin: center;
-      }
-
-      .strip-negative {
-        animation: glowNegative 1.8s ease-in-out infinite;
-        transform-origin: center;
-      }
-    `}
-  </style>
 );
 
 /**
  * Balloon shape with strings and ribbons
  */
-const BalloonShape = ({ color, isPositive, coinId, onPointerDown, onPointerMove, onPointerUp }) => {
+const BalloonShape = ({ color, isPositive, onPointerDown, onPointerMove, onPointerUp }) => {
   const stripClass = isPositive ? "strip-positive" : "strip-negative";
   const stripColor = isPositive ? "#10b981" : "#ef4444";
 
   return (
     <>
       <g
-        filter="url(#softGlow)"
         style={{ pointerEvents: "auto", cursor: "grab" }}
         onPointerDown={onPointerDown}
         onPointerMove={onPointerMove}
@@ -190,8 +122,8 @@ const BalloonShape = ({ color, isPositive, coinId, onPointerDown, onPointerMove,
         <path fillRule="evenodd" fill="rgb(45.872498%, 15.281677%, 10.594177%)" fillOpacity="1" d="M1799.17 2683.21h201.27v23.72h-201.27c-6.53 0-11.86-5.34-11.86-11.86s5.33-11.86 11.86-11.86z" />
         
         {/* Left ribbon strips */}
-        <path className={stripClass} fill={stripColor} filter={`url(#stripGlow-${coinId})`} d="M1876.27 3185.63c10.94 14.27 50.5 14.38 47.44-18.22-3.47-37.06-24.41-31.48-29.66-58.04 0 0 1.27 8.47-12.7 10.58-13.98 2.12-7.2 8.05-7.2 8.05s11.01-.85 13.55 1.66c1.29 1.29-21.69 42.55-11.43 55.97z" />
-        <path className={stripClass} fill={stripColor} filter={`url(#stripGlow-${coinId})`} d="M1887.75 3129.97c2.68.06 8.35-.43 13.11-4.94 1.04 1.37 2.13 2.63 3.26 3.85-6.92 5.88-15.2 5.82-17.99 5.6.96-2.28 1.58-3.88 1.62-4.51z" />
+        <path className={stripClass} fill={stripColor} d="M1876.27 3185.63c10.94 14.27 50.5 14.38 47.44-18.22-3.47-37.06-24.41-31.48-29.66-58.04 0 0 1.27 8.47-12.7 10.58-13.98 2.12-7.2 8.05-7.2 8.05s11.01-.85 13.55 1.66c1.29 1.29-21.69 42.55-11.43 55.97z" />
+        <path className={stripClass} fill={stripColor} d="M1887.75 3129.97c2.68.06 8.35-.43 13.11-4.94 1.04 1.37 2.13 2.63 3.26 3.85-6.92 5.88-15.2 5.82-17.99 5.6.96-2.28 1.58-3.88 1.62-4.51z" />
         
         {/* Right side strings and base */}
         <path fillRule="evenodd" fill="rgb(51.367188%, 31.37207%, 19.993591%)" fillOpacity="1" d="M2000.44 3051.33h186.02c8.39 0 15.25 6.86 15.25 15.25s-6.86 15.25-15.25 15.25H2000.44v-30.5z" />
@@ -202,10 +134,10 @@ const BalloonShape = ({ color, isPositive, coinId, onPointerDown, onPointerMove,
         <path fillRule="evenodd" fill="rgb(34.910583%, 16.088867%, 9.790039%)" fillOpacity="1" d="M2000.44 3081.83h177.92v11.9H2000.44v-11.9z" />
         
         {/* Right ribbon strips */}
-        <path className={stripClass} fill={stripColor} filter={`url(#stripGlow-${coinId})`} d="M1899.45 3051.33v77.8h-4v-77.8h4z" />
-        <path className={stripClass} fill={stripColor} filter={`url(#stripGlow-${coinId})`} d="M2080.75 3185.63c10.95 14.27 50.5 14.38 47.45-18.22-3.48-37.06-24.41-31.48-29.66-58.04 0 0 1.27 8.47-12.7 10.58-13.97 2.12-7.2 8.05-7.2 8.05s11.01-.85 13.54 1.66c1.29 1.29-21.68 42.55-11.43 55.97z" />
-        <path className={stripClass} fill={stripColor} filter={`url(#stripGlow-${coinId})`} d="M2092.24 3129.97c2.68.06 8.35-.43 13.1-4.94 1.04 1.37 2.13 2.63 3.27 3.85-6.92 5.88-15.2 5.82-18 5.6.96-2.28 1.59-3.88 1.63-4.51z" />
-        <path className={stripClass} fill={stripColor} filter={`url(#stripGlow-${coinId})`} d="M2103.93 3051.33v77.8h-4v-77.8h4z" />
+        <path className={stripClass} fill={stripColor} d="M1899.45 3051.33v77.8h-4v-77.8h4z" />
+        <path className={stripClass} fill={stripColor} d="M2080.75 3185.63c10.95 14.27 50.5 14.38 47.45-18.22-3.48-37.06-24.41-31.48-29.66-58.04 0 0 1.27 8.47-12.7 10.58-13.97 2.12-7.2 8.05-7.2 8.05s11.01-.85 13.54 1.66c1.29 1.29-21.68 42.55-11.43 55.97z" />
+        <path className={stripClass} fill={stripColor} d="M2092.24 3129.97c2.68.06 8.35-.43 13.1-4.94 1.04 1.37 2.13 2.63 3.27 3.85-6.92 5.88-15.2 5.82-18 5.6.96-2.28 1.59-3.88 1.63-4.51z" />
+        <path className={stripClass} fill={stripColor} d="M2103.93 3051.33v77.8h-4v-77.8h4z" />
         <path fillRule="evenodd" fill="rgb(43.920898%, 19.993591%, 11.767578%)" fillOpacity="1" d="M1822.51 3081.83h177.93v11.9h-177.93v-11.9z" />
         
         {/* Main balloon body */}

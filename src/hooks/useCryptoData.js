@@ -18,8 +18,9 @@ export const useCryptoData = (range) => {
     const fetchData = async () => {
       try {
         setIsLoading(true);
+        
         const res = await fetch(
-          `${process.env.NEXT_PUBLIC_BACKEND_URL}/api/crypto/all-tickers`
+          `${process.env.NEXT_PUBLIC_CRYPTO_DATA_URL}/api/crypto/tickers`
         );
         
         if (!res.ok) {

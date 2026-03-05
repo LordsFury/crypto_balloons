@@ -11,27 +11,36 @@ body {
   touch-action: none;
 }
 
+/* Balloon ribbon shimmer */
+@keyframes glowPositive {
+  0%   { opacity: 0.6; }
+  50%  { opacity: 1; }
+  100% { opacity: 0.6; }
+}
+@keyframes glowNegative {
+  0%   { opacity: 0.6; }
+  50%  { opacity: 1; }
+  100% { opacity: 0.6; }
+}
+.strip-positive {
+  animation: glowPositive 2s ease-in-out infinite;
+}
+.strip-negative {
+  animation: glowNegative 2s ease-in-out infinite;
+}
+
 .balloon-float {
   will-change: transform;
   animation: floatBalloon ease-in-out infinite;
-  transition: filter 0.3s ease;
 }
 
-.balloon-float:active {
-  filter: brightness(1.1) drop-shadow(0 0 20px rgba(255, 255, 255, 0.5));
-}
-
+/* 4-stage organic float: slight arc + subtle breathe makes balloons feel alive */
 @keyframes floatBalloon {
-  0% {
-    transform: translate(0, 0) rotate(0deg);
-  }
-  50% {
-    transform: translate(var(--float-x), calc(-1 * var(--float-y)))
-      rotate(var(--rotate));
-  }
-  100% {
-    transform: translate(0, 0) rotate(0deg);
-  }
+  0%   { transform: translate(0,                              0)                             rotate(0deg)                          scale(1);    }
+  25%  { transform: translate(calc(var(--float-x) * 0.6),    calc(var(--float-y) * -0.4))   rotate(calc(var(--rotate) * 0.4))     scale(1.01); }
+  50%  { transform: translate(var(--float-x),                calc(var(--float-y) * -1))      rotate(var(--rotate))                 scale(1.02); }
+  75%  { transform: translate(calc(var(--float-x) * 0.6),    calc(var(--float-y) * -0.4))   rotate(calc(var(--rotate) * 0.4))     scale(1.01); }
+  100% { transform: translate(0,                              0)                             rotate(0deg)                          scale(1);    }
 }
 
 /* Smooth cursor transitions */
@@ -39,14 +48,10 @@ body {
   cursor: inherit;
 }
 
-/* Add ripple effect on drag */
-@keyframes ripple {
-  0% {
-    transform: scale(1);
-    opacity: 0.6;
-  }
-  100% {
-    transform: scale(1.5);
-    opacity: 0;
-  }
+/* Grab cursor on hoverable balloon SVGs */
+.balloon-float svg {
+  cursor: grab;
+}
+.balloon-float svg:active {
+  cursor: grabbing;
 }

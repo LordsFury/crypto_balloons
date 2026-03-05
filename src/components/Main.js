@@ -1,5 +1,5 @@
 "use client";
-import { useEffect, useState } from "react";
+import React, { useEffect, useState, useCallback, useRef } from "react";
 import { AnimatePresence } from "framer-motion";
 import BalloonFloating from "./BalloonFloating";
 import Modal from "./Modal";
@@ -15,8 +15,47 @@ import { RESET_POSITIONS_ON_TIME_CHANGE } from "@/config/balloonConstants";
  * Main Component
  * Orchestrates balloon display, layout management, and user interactions
  */
+// Background images for slideshow
+const balloonBackgrounds = [
+  "/assets/background1.jpeg",
+  "/assets/background2.jpeg",
+  "/assets/background3.jpeg",
+  "/assets/background4.jpeg",
+  "/assets/background5.jpeg",
+  "/assets/background6.jpeg",
+  "/assets/backgroud7.jpeg",
+  "/assets/background8.jpeg"
+];
+
+// Background slideshow as isolated component to prevent Main re-renders every 10s
+const BackgroundSlideshow = React.memo(function BackgroundSlideshow() {
+  const [bgIndex, setBgIndex] = useState(0);
+  useEffect(() => {
+    const interval = setInterval(() => {
+      setBgIndex((prev) => (prev + 1) % balloonBackgrounds.length);
+    }, 10000);
+    return () => clearInterval(interval);
+  }, []);
+
+  return (
+    <div
+      style={{
+        position: "absolute",
+        top: 0,
+        left: 0,
+        width: "100vw",
+        height: "100vh",
+        zIndex: 0,
+        background: `url(${balloonBackgrounds[bgIndex]}) center/cover no-repeat`,
+        transition: "background-image 1s ease-in-out"
+      }}
+    />
+  );
+});
+
 export default function Main() {
   const [selectedCoin, setSelectedCoin] = useState(null);
+  const constraintRef = useRef(null);
   
   const { time } = useTime();
   const { range } = useRange();
@@ -49,7 +88,7 @@ export default function Main() {
     }
   }, [time, range]);
 
-  const closePopup = () => setSelectedCoin(null);
+  const closePopup = useCallback(() => setSelectedCoin(null), []);
 
   if (isLoading) {
     return (
@@ -60,29 +99,31 @@ export default function Main() {
   }
 
   return (
-    <div className="fixed inset-0 top-12 w-screen h-screen">
-      
-      <AnimatePresence>
-        {balloons.map((balloon) => {
-          const { w: W, h: H } = screenDimensions;
-          
-          const safeX = getSafePosition(balloon.cx, balloon.size, W);
-          const safeY = getSafePosition(balloon.cy, balloon.size, H);
-
-          return (
-            <BalloonFloating
-              key={balloon.id}
-              {...balloon}
-              x={safeX - balloon.size / 2}
-              y={safeY - balloon.size / 2}
-              time={time}
-              onBalloonClick={setSelectedCoin}
-            />
-          );
-        })}
-      </AnimatePresence>
-      
-      <Modal selectedCoin={selectedCoin} closePopup={closePopup} />
+    <div ref={constraintRef} className="fixed inset-0 top-12" style={{ overflow: "hidden" }}>
+      {/* Background slideshow (isolated — won't re-render balloons) */}
+      <BackgroundSlideshow />
+      {/* Balloons and modal */}
+      <div style={{ position: "relative", zIndex: 1, width: "100%", height: "100%" }}>
+        <AnimatePresence>
+          {balloons.map((balloon) => {
+            const { w: W, h: H } = screenDimensions;
+            const safeX = getSafePosition(balloon.cx, balloon.size, W);
+            const safeY = getSafePosition(balloon.cy, balloon.size, H);
+            return (
+              <BalloonFloating
+                key={balloon.id}
+                {...balloon}
+                x={safeX - balloon.size / 2}
+                y={safeY - balloon.size / 2}
+                time={time}
+                onBalloonClick={setSelectedCoin}
+                containerRef={constraintRef}
+              />
+            );
+          })}
+        </AnimatePresence>
+        <Modal selectedCoin={selectedCoin} closePopup={closePopup} />
+      </div>
     </div>
   );
 }

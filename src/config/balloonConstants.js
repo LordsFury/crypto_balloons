@@ -6,15 +6,15 @@
 export const BASE_SIZE = 200; // Reference size for calculations
 
 // Size constraints - Wide range for maximum differentiation
-export const MIN_BALLOON_SIZE = 120;
-export const MAX_BALLOON_SIZE = 380;
+// export const MIN_BALLOON_SIZE = 100;
+// export const MAX_BALLOON_SIZE = 350;
 
 // Time-period specific sizing configuration
 // Wider ranges and aggressive scaling for clear visual differences
 export const TIME_PERIOD_SIZING = {
   "1h": {
     // 1h: Small changes need VERY aggressive scaling to show differences
-    minSize: 140,
+    minSize: 120,
     maxSize: 220,
     // Aggressive power to really spread values
     scalingPower: 0.3,
@@ -24,8 +24,8 @@ export const TIME_PERIOD_SIZING = {
   },
   "24h": {
     // 24h: Good range with cubic root scaling
-    minSize: 140,
-    maxSize: 250,
+    minSize: 120,
+    maxSize: 220,
     // Cubic root for more spread
     scalingPower: 0.4,
     useLogarithmic: false,
@@ -33,8 +33,8 @@ export const TIME_PERIOD_SIZING = {
   },
   "7d": {
     // 7d: Wide range with square root
-    minSize: 130,
-    maxSize: 250,
+    minSize: 110,
+    maxSize: 230,
     // Square root scaling
     scalingPower: 0.5,
     useLogarithmic: false,
@@ -42,16 +42,16 @@ export const TIME_PERIOD_SIZING = {
   },
   "30d": {
     // 30d: Log + aggressive power for extreme variation
-    minSize: 120,
-    maxSize: 230,
+    minSize: 100,
+    maxSize: 210,
     scalingPower: 0.35,
     useLogarithmic: true,
     rankWeight: 0.3
   },
   "1y": {
     // 1y: Strong log with aggressive power
-    minSize: 120,
-    maxSize: 240,
+    minSize: 100,
+    maxSize: 220,
     scalingPower: 0.4,
     useLogarithmic: true,
     rankWeight: 0.4
@@ -67,7 +67,7 @@ export const LARGE_BALLOON_THRESHOLD = 180;
 
 // Interaction thresholds
 export const CLICK_THRESHOLD = 8;
-export const COLLISION_DISTANCE = 180; // Increased for earlier detection
+export const COLLISION_DISTANCE = 150; // ~sum of avg balloon radii (120-230px → radius 60-115px)
 export const REPEL_FORCE = 20; // Moderate force for smooth movement
 export const ENABLE_PERSISTENT_PUSH = true; // Enable balloons to stay where pushed
 export const RESET_POSITIONS_ON_TIME_CHANGE = true; // Reset positions when changing time period
@@ -125,7 +125,7 @@ export const REPEL_ANIMATION_DURATION = 0.6;
 
 // Drag physics
 export const DRAG_MOMENTUM = true;
-export const DRAG_ELASTIC = 0; // No elastic - hard wall boundary
+export const DRAG_ELASTIC = 0.08; // Slight elasticity for smooth boundary feel
 export const DRAG_TRANSITION_DURATION = 0.3;
 export const DRAG_CONSTRAINTS_PADDING = 50;
 export const INERTIA_POWER = 0.8;

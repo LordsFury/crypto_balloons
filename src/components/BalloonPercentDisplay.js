@@ -4,7 +4,7 @@ import React from "react";
  * BalloonPercentDisplay Component
  * Displays the percentage change with animated background (only rendered when size threshold is met)
  */
-const BalloonPercentDisplay = ({ displayPercent, percentY, coinId, size }) => {
+const BalloonPercentDisplay = ({ displayPercent, percentY, size }) => {
   const isPositive = displayPercent >= 0;
   const absPercent = Math.abs(displayPercent);
 
@@ -19,7 +19,7 @@ const BalloonPercentDisplay = ({ displayPercent, percentY, coinId, size }) => {
   const fontSize = Math.max(200, Math.min(240, size * 0.9));
 
   return (
-    <g filter={`url(#shadow-${coinId})`} style={{ pointerEvents: 'none' }}>
+    <g style={{ pointerEvents: 'none' }}>
       {/* Background ellipses */}
       <ellipse
         cx="2000"

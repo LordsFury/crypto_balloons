@@ -27,7 +27,7 @@ const Navbar = () => {
     { value: "year", label: "1Y" }
   ];
 
-  const rangeOptions = Array.from({ length: 20 }, (_, i) => {
+  const rangeOptions = Array.from({ length: 10 }, (_, i) => {
     const start = i * 50 + 1;
     const end = (i + 1) * 50;
     return {
@@ -47,7 +47,7 @@ const Navbar = () => {
 
   const nextRange = () => {
     const [s] = range.split("-").map(Number);
-    if (s < 951) {
+    if (s < 451) {
       const start = s + 50;
       setRange(`${start}-${start + 49}`);
     }
@@ -55,10 +55,14 @@ const Navbar = () => {
 
   const visiblePills = windowWidth >= 1280 ? 4 : windowWidth >= 1024 ? 3 : 0;
 
-  const renderRangePills = (count) =>
-    Array.from({ length: count }).map((_, offset) => {
-      const base = Number(range.split("-")[0]) + offset * 50;
-      if (base > 1000) return null;
+  const renderRangePills = (count) => {
+    const maxBase = 451; // last valid start (451-500)
+    const currentBase = Number(range.split("-")[0]);
+    // Clamp so we always have enough pills: if near the end, shift start back
+    const startBase = Math.min(currentBase, maxBase - (count - 1) * 50);
+    return Array.from({ length: count }).map((_, offset) => {
+      const base = startBase + offset * 50;
+      if (base < 1 || base > maxBase) return null;
       const value = `${base}-${base + 49}`;
       const label = `${base} - ${base + 49}`;
       const active = range === value;
@@ -76,6 +80,7 @@ const Navbar = () => {
         </button>
       );
     });
+  };
 
   return (
     <nav className="w-full bg-linear-to-r from-purple-900 via-purple-600 to-blue-900 shadow-2xl fixed top-0 left-0 z-50">

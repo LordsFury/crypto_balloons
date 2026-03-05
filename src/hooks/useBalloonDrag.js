@@ -1,36 +1,35 @@
-import { useState, useRef, useCallback } from "react";
+import { useRef, useCallback } from "react";
 import { CLICK_THRESHOLD } from "@/config/balloonConstants";
 
 /**
  * Custom hook for managing balloon drag interactions
+ * ZERO re-renders during drag — uses refs + motionValue for z-index
  * @param {Function} onBalloonClick - Callback when balloon is clicked (not dragged)
- * @returns {Object} - Drag handlers and state
+ * @param {import("framer-motion").MotionValue} zIndexMV - Motion value for z-index
+ * @returns {Object} - Drag handlers (all stable, no state)
  */
-export const useBalloonDrag = (onBalloonClick) => {
-  const [isDragging, setIsDragging] = useState(false);
-  const [zIndex, setZIndex] = useState(0);
+export const useBalloonDrag = (onBalloonClick, zIndexMV) => {
   const pointerStart = useRef({ x: 0, y: 0 });
   const dragged = useRef(false);
   const globalZIndexRef = useRef(5000);
   const dragStartTime = useRef(0);
 
-  const handlePointerDown = useCallback((e, coin) => {
+  const handlePointerDown = useCallback((e) => {
     e.stopPropagation();
 
     dragged.current = false;
     pointerStart.current = { x: e.clientX, y: e.clientY };
     dragStartTime.current = Date.now();
-    setIsDragging(true);
 
-    // Bring to front
+    // Bring to front via motionValue — no React re-render
     globalZIndexRef.current += 1;
-    setZIndex(globalZIndexRef.current);
+    if (zIndexMV) zIndexMV.set(globalZIndexRef.current);
 
-    // Add haptic feedback on supported devices
+    // Haptic feedback on supported devices
     if (navigator.vibrate) {
       navigator.vibrate(10);
     }
-  }, []);
+  }, [zIndexMV]);
 
   const handlePointerMove = useCallback((e) => {
     const dx = Math.abs(e.clientX - pointerStart.current.x);
@@ -43,7 +42,6 @@ export const useBalloonDrag = (onBalloonClick) => {
 
   const handlePointerUp = useCallback((coin) => {
     const dragDuration = Date.now() - dragStartTime.current;
-    setIsDragging(false);
 
     // Only trigger click if it was a quick tap/click (not a drag)
     if (!dragged.current && dragDuration < 300 && onBalloonClick) {
@@ -60,18 +58,10 @@ export const useBalloonDrag = (onBalloonClick) => {
     dragged.current = true;
   }, []);
 
-  const handleDragEnd = useCallback(() => {
-    setIsDragging(false);
-  }, []);
-
   return {
-    isDragging,
-    zIndex,
-    setZIndex,
     handlePointerDown,
     handlePointerMove,
     handlePointerUp,
     handleDragStart,
-    handleDragEnd
   };
 };

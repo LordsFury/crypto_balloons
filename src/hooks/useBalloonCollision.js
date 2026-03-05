@@ -1,112 +1,148 @@
-import { useEffect, useRef } from "react";
-import { 
-  COLLISION_DISTANCE, 
-  REPEL_FORCE, 
-  COLLISION_CHECK_INTERVAL 
-} from "@/config/balloonConstants";
-import { getDistance, getRectCenter } from "@/utils/balloonCalculations";
+import { useEffect, useRef, useCallback } from "react";
+import { NAVBAR_HEIGHT } from "@/config/balloonConstants";
 import { balloonPositionManager } from "@/utils/balloonPositionManager";
 
-/**
- * Custom hook for handling balloon collision detection and repulsion
- * Now uses persistent position offsets so pushed balloons stay in their new positions
- */
-export const useBalloonCollision = (isDragging, elementRef, balloonId) => {
-  const intervalRef = useRef(null);
-  const pushedBalloonsRef = useRef(new Set());
+const PAIR_PUSH_STRENGTH   = 0.02;  // repulsion between overlapping non-dragged balloons
+const CASCADE_RADIUS_RATIO = 0.25;  // overlap threshold as fraction of combined widths
+const GRACE_FRAMES         = 12;    // frames before pair/boundary logic fires (prevents jump on drag start)
+const BOUNDARY_STRENGTH    = 0.05;  // gentle push back from screen edges
 
-  useEffect(() => {
-    if (!isDragging || !elementRef.current) {
-      if (intervalRef.current) {
-        clearInterval(intervalRef.current);
-        intervalRef.current = null;
-      }
-      // Keep the pushed balloons set for this drag session
-      // Don't clear it - balloons should stay in their new positions
-      return;
+/**
+ * Collision loop — runs while a balloon is being dragged.
+ *
+ * After a short grace period (GRACE_FRAMES):
+ *   • Pair repulsion  — every non-dragged pair is checked; overlapping ones
+ *     are gently separated so balloons cannot cluster.
+ *   • Boundary reflection — any balloon that has drifted outside the real
+ *     container edges (top=NAVBAR_HEIGHT, bottom=H, left=0, right=W) is
+ *     pushed back inward.  No padding is subtracted, so balloons sitting
+ *     correctly at the edges are never disturbed.
+ *
+ * Initial drag push (moving balloons aside while dragging) is handled by
+ * applyMoveWithCollision in BalloonFloating.js.
+ */
+export const useBalloonCollision = (elementRef, balloonId) => {
+  const rafRef = useRef(null);
+
+  const stopCollision = useCallback(() => {
+    if (rafRef.current) {
+      cancelAnimationFrame(rafRef.current);
+      rafRef.current = null;
     }
+  }, []);
 
-    // Small delay before starting collision detection
-    const startTimeout = setTimeout(() => {
-      intervalRef.current = setInterval(() => {
-        if (!elementRef.current) return;
-        
-        // Get all balloons via data-balloon-id on motion.div parent
-        const allBalloons = document.querySelectorAll('[data-balloon-id]');
-        const myParent = elementRef.current.parentElement;
-        if (!myParent) return;
-        
-        const myRect = myParent.getBoundingClientRect();
-        const myCenter = getRectCenter(myRect);
+  const startCollision = useCallback(() => {
+    stopCollision();
+    if (!elementRef.current) return;
 
-        allBalloons.forEach((otherBalloon) => {
-          if (otherBalloon === myParent) return;
+    let cachedBalloons = null;
+    let frameCount = 0;
 
-          const otherBalloonId = otherBalloon.getAttribute('data-balloon-id');
-          if (!otherBalloonId || otherBalloonId === balloonId) return;
+    const tick = () => {
+      if (!elementRef.current) return;
 
-          const otherRect = otherBalloon.getBoundingClientRect();
-          const otherCenter = getRectCenter(otherRect);
-          
-          const distance = getDistance(myCenter.x, myCenter.y, otherCenter.x, otherCenter.y);
-
-          if (distance < COLLISION_DISTANCE && distance > 0) {
-            pushBalloon(otherBalloon, otherBalloonId, myCenter, otherCenter, distance);
-            pushedBalloonsRef.current.add(otherBalloonId);
-          }
-        });
-      }, COLLISION_CHECK_INTERVAL);
-    }, 150);
-
-    return () => {
-      clearTimeout(startTimeout);
-      if (intervalRef.current) {
-        clearInterval(intervalRef.current);
-        intervalRef.current = null;
+      // Refresh DOM list every 30 frames (~0.5 s at 60 fps)
+      if (!cachedBalloons || frameCount % 30 === 0) {
+        cachedBalloons = Array.from(document.querySelectorAll('[data-balloon-id]'));
       }
-      // Don't clear pushedBalloonsRef - let balloons keep their positions
+      frameCount++;
+
+      const W = window.innerWidth;
+      const H = window.innerHeight;
+
+      const myParent = elementRef.current.parentElement;
+      if (!myParent) { rafRef.current = requestAnimationFrame(tick); return; }
+
+      // Skip the first few frames so existing resting positions are not disturbed
+      // the moment a drag starts.
+      if (frameCount <= GRACE_FRAMES) {
+        rafRef.current = requestAnimationFrame(tick);
+        return;
+      }
+
+      // Build snapshot of all balloons once per frame
+      const snap = [];
+      for (let i = 0; i < cachedBalloons.length; i++) {
+        const el = cachedBalloons[i];
+        const id = el.getAttribute('data-balloon-id');
+        if (!id) continue;
+        const rect = el.getBoundingClientRect();
+        snap.push({
+          id,
+          rect,
+          cx: rect.left + rect.width  * 0.5,
+          cy: rect.top  + rect.height * 0.5,
+          isDragged: el === myParent,
+        });
+      }
+
+      // ── Pair repulsion: prevent balloons from clustering ─────────────────
+      for (let i = 0; i < snap.length; i++) {
+        const a = snap[i];
+        if (a.isDragged) continue;
+        for (let j = i + 1; j < snap.length; j++) {
+          const b = snap[j];
+          if (b.isDragged) continue;
+
+          const minDist = (a.rect.width + b.rect.width) * CASCADE_RADIUS_RATIO;
+          const dx = b.cx - a.cx;
+          const dy = b.cy - a.cy;
+          const dSq = dx * dx + dy * dy;
+
+          if (dSq < minDist * minDist && dSq > 1) {
+            const dist = Math.sqrt(dSq);
+            const overlap = minDist - dist;
+            const amt = overlap * PAIR_PUSH_STRENGTH;
+            const px = (dx / dist) * amt;
+            const py = (dy / dist) * amt;
+            // Push both balloons apart equally
+            safePush(b.id,  px,  py, b.rect, W, H, NAVBAR_HEIGHT);
+            safePush(a.id, -px, -py, a.rect, W, H, NAVBAR_HEIGHT);
+          }
+        }
+      }
+
+      // ── Boundary reflection: push back any balloon outside real edges ─────
+      // Container is fixed inset-0 top-12, so real edges are:
+      //   top=NAVBAR_HEIGHT, bottom=H, left=0, right=W
+      // We use exactly those values — no inward padding — so balloons sitting
+      // correctly at an edge are never disturbed.
+      for (let i = 0; i < snap.length; i++) {
+        const b = snap[i];
+        if (b.isDragged) continue;
+
+        const { left, right, top, bottom } = b.rect;
+        let rx = 0, ry = 0;
+
+        if (left < 0)          rx += -left  * BOUNDARY_STRENGTH;
+        if (right > W)         rx -= (right - W) * BOUNDARY_STRENGTH;
+        if (top < NAVBAR_HEIGHT) ry += (NAVBAR_HEIGHT - top) * BOUNDARY_STRENGTH;
+        if (bottom > H)        ry -= (bottom - H) * BOUNDARY_STRENGTH;
+
+        if (Math.abs(rx) > 0.05 || Math.abs(ry) > 0.05) {
+          balloonPositionManager.setOffset(b.id, rx, ry);
+        }
+      }
+
+      rafRef.current = requestAnimationFrame(tick);
     };
-  }, [isDragging, elementRef, balloonId]);
+
+    rafRef.current = requestAnimationFrame(tick);
+  }, [elementRef, balloonId, stopCollision]);
+
+  useEffect(() => () => stopCollision(), [stopCollision]);
+
+  return { startCollision, stopCollision };
 };
 
 /**
- * Push a balloon away and store the offset permanently
- * @param {HTMLElement} balloon - The balloon element to push
- * @param {string} balloonId - The balloon's unique ID
- * @param {Object} fromCenter - Center point of the dragged balloon
- * @param {Object} toCenter - Center point of the balloon being pushed
- * @param {number} distance - Distance between balloons
+ * Apply a push only if it keeps the balloon within visible bounds.
  */
-const pushBalloon = (balloon, balloonId, fromCenter, toCenter, distance) => {
-  // balloon is already the motion.div parent element
-  if (!balloon) return;
-
-  // Calculate direction
-  const dx = toCenter.x - fromCenter.x;
-  const dy = toCenter.y - fromCenter.y;
-  
-  // Calculate force (stronger when closer)
-  const force = Math.pow(1 - (distance / COLLISION_DISTANCE), 1.5);
-  const pushAmount = REPEL_FORCE * force * 0.6;
-  
-  const pushX = (dx / distance) * pushAmount;
-  const pushY = (dy / distance) * pushAmount;
-
-  // Boundary check - get current offset to calculate final position
-  const currentOffset = balloonPositionManager.getOffset(balloonId);
-  const rect = balloon.getBoundingClientRect();
-  const newX = rect.left + pushX;
-  const newY = rect.top + pushY;
-  
-  const margin = 60; // Reduced margin for better usable area
-  
-  // Only prevent push if it would go significantly off-screen
-  if (newX < -margin || newX > window.innerWidth - rect.width + margin ||
-      newY < -margin || newY > window.innerHeight - rect.height + margin) {
-    return;
-  }
-
-  // Store the offset permanently in the position manager
-  // This ensures the balloon stays in its new position
+function safePush(balloonId, pushX, pushY, rect, W, H, navbarHeight) {
+  const margin = 80;
+  const newLeft = rect.left + pushX;
+  const newTop  = rect.top  + pushY;
+  if (newLeft < -margin || newLeft > W - rect.width  + margin) return;
+  if (newTop  < navbarHeight - margin || newTop > H - rect.height + margin) return;
   balloonPositionManager.setOffset(balloonId, pushX, pushY);
-};
+}
