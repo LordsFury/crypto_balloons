@@ -76,11 +76,16 @@ export const useBalloonCollision = (elementRef, balloonId) => {
         });
       }
 
-      // ── Pair repulsion: prevent balloons from clustering ─────────────────
+      // ── Pair repulsion: only separate balloons that were actively pushed ──
+      // by the drag. Resting overlapping pairs are left alone so the natural
+      // tight-packed layout isn't disturbed.
+      const activePushIds = balloonPositionManager.getActivePushIds();
       for (let i = 0; i < snap.length; i++) {
         const a = snap[i];
         if (a.isDragged) continue;
-        for (let j = i + 1; j < snap.length; j++) {
+        if (!activePushIds.has(a.id)) continue; // only cascade from pushed balloons
+        for (let j = 0; j < snap.length; j++) {
+          if (i === j) continue;
           const b = snap[j];
           if (b.isDragged) continue;
 
@@ -95,21 +100,18 @@ export const useBalloonCollision = (elementRef, balloonId) => {
             const amt = overlap * PAIR_PUSH_STRENGTH;
             const px = (dx / dist) * amt;
             const py = (dy / dist) * amt;
-            // Push both balloons apart equally
+            // Only push the non-active balloon away; don't pull the active one back
             safePush(b.id,  px,  py, b.rect, W, H, NAVBAR_HEIGHT);
-            safePush(a.id, -px, -py, a.rect, W, H, NAVBAR_HEIGHT);
           }
         }
       }
 
-      // ── Boundary reflection: push back any balloon outside real edges ─────
-      // Container is fixed inset-0 top-12, so real edges are:
-      //   top=NAVBAR_HEIGHT, bottom=H, left=0, right=W
-      // We use exactly those values — no inward padding — so balloons sitting
-      // correctly at an edge are never disturbed.
+      // ── Boundary reflection: only for actively pushed balloons ────────────
+      // Resting balloons at edges are not disturbed.
       for (let i = 0; i < snap.length; i++) {
         const b = snap[i];
         if (b.isDragged) continue;
+        if (!activePushIds.has(b.id)) continue;
 
         const { left, right, top, bottom } = b.rect;
         let rx = 0, ry = 0;

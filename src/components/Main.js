@@ -88,6 +88,12 @@ export default function Main() {
     }
   }, [time, range]);
 
+  // Reset drag offsets on resize so balloons spring cleanly to new positions
+  useEffect(() => {
+    if (!screenDimensions.w) return;
+    balloonPositionManager.resetSilently();
+  }, [screenDimensions]);
+
   const closePopup = useCallback(() => setSelectedCoin(null), []);
 
   if (isLoading) {
@@ -107,8 +113,8 @@ export default function Main() {
         <AnimatePresence>
           {balloons.map((balloon) => {
             const { w: W, h: H } = screenDimensions;
-            const safeX = getSafePosition(balloon.cx, balloon.size, W);
-            const safeY = getSafePosition(balloon.cy, balloon.size, H);
+            const safeX = getSafePosition(balloon.cx, balloon.size, W, 'x');
+            const safeY = getSafePosition(balloon.cy, balloon.size, H, 'y');
             return (
               <BalloonFloating
                 key={balloon.id}

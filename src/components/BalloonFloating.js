@@ -56,6 +56,8 @@ const BalloonFloating = ({
   const catchUpRafRef       = useRef(null);
   // Guard: while true, listener redirects dragTarget instead of teleporting motionX
   const isCatchingUpRef     = useRef(false);
+  // Counts pan frames so push force can ramp up gradually
+  const dragFrameRef        = useRef(0);
   
   // Keep coin in a ref so stable callbacks always access latest coin
   const coinRef = useRef(coin);
@@ -100,6 +102,7 @@ const BalloonFloating = ({
     // Reset active-push tracking so resting balloons won't be disturbed
     balloonPositionManager.clearActivePushIds();
     startCollision();
+    dragFrameRef.current = 0;
     const sx = motionX.get(), sy = motionY.get();
     dragStartOffsetRef.current = { x: sx, y: sy };
     dragTargetRef.current      = { x: sx, y: sy };
@@ -122,6 +125,7 @@ const BalloonFloating = ({
 
     // Push other balloons out of the way
     const allBalloons = document.querySelectorAll('[data-balloon-id]');
+    const cRect = containerRef?.current?.getBoundingClientRect();
     for (const el of allBalloons) {
       if (el === myEl) continue;
 
@@ -137,11 +141,27 @@ const BalloonFloating = ({
       if (distSq < minDist * minDist && distSq > 1) {
         const dist = Math.sqrt(distSq);
         const overlap = minDist - dist;
-        const nx = dx / dist;
-        const ny = dy / dist;
+        // Ramp push force over first 15 frames so collisions don't jolt on drag start
+        const ramp = Math.min(1, dragFrameRef.current / 15);
+        const softOverlap = overlap * ramp * 0.5;
+        let px = -(dx / dist) * softOverlap;
+        let py = -(dy / dist) * softOverlap;
+
+        // Clamp push so the pushed balloon stays within the container
+        if (cRect) {
+          const oHalfW = oRect.width / 2;
+          const oHalfH = oRect.height / 2;
+          const pushedCX = oCX + px;
+          const pushedCY = oCY + py;
+          const clampedCX = Math.max(cRect.left + oHalfW * 0.3, Math.min(cRect.right - oHalfW * 0.3, pushedCX));
+          const clampedCY = Math.max(cRect.top + oHalfH, Math.min(cRect.bottom - oHalfH * 0.3, pushedCY));
+          px = clampedCX - oCX;
+          py = clampedCY - oCY;
+        }
+
         const otherId = el.getAttribute('data-balloon-id');
         if (otherId) {
-          balloonPositionManager.setOffset(otherId, -nx * overlap, -ny * overlap);
+          balloonPositionManager.setOffset(otherId, px, py);
           // Mark as actively pushed so cascade can propagate from it
           balloonPositionManager.markActivePush(otherId);
         }
@@ -195,6 +215,7 @@ const BalloonFloating = ({
 
     dragTargetRef.current = { x: tx, y: ty };
 
+    dragFrameRef.current++;
     const cx = motionX.get();
     const cy = motionY.get();
     const moveX = (tx - cx) * DRAG_LERP;

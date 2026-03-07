@@ -8,45 +8,56 @@ import {
   DEFAULT_DURATION, 
   DEFAULT_DRIFT, 
   DEFAULT_FLOAT_DISTANCE,
-  TIME_PERIOD_MAP 
+  TIME_PERIOD_MAP,
+  MOBILE_BREAKPOINT 
 } from "@/config/balloonConstants";
 
+// Deterministic pseudo-random so positions stay stable across resizes
+const seededRandom = (seed) => {
+  const x = Math.sin(seed * 127.1 + 311.7) * 43758.5453;
+  return x - Math.floor(x);
+};
+
 /**
- * Custom hook for managing balloon layout and positioning
- * @param {Array} coins - Array of coin data
- * @param {string} time - Current time period
- * @returns {Object} - Layout configuration and update function
+ * Custom hook for managing balloon layout and positioning.
+ * Screen dimensions are tracked as state so a resize automatically
+ * triggers a relayout (balloons spring to their new positions).
  */
 export const useBalloonLayout = (coins, time) => {
   const [balloons, setBalloons] = useState([]);
   const layoutRef = useRef([]);
-  const screenRef = useRef({ w: 0, h: 0 });
+  const [screenDims, setScreenDims] = useState({ w: 0, h: 0 });
 
-  // Initialize screen dimensions
+  // Track screen dimensions with debounced resize
   useEffect(() => {
     if (typeof window === "undefined") return;
-    
-    screenRef.current = {
-      w: window.innerWidth,
-      h: window.innerHeight,
-    };
 
+    const update = () => setScreenDims({ w: window.innerWidth, h: window.innerHeight });
+    update();
+
+    let timer;
     const handleResize = () => {
-      screenRef.current = {
-        w: window.innerWidth,
-        h: window.innerHeight,
-      };
+      clearTimeout(timer);
+      timer = setTimeout(update, 150);
     };
 
     window.addEventListener("resize", handleResize);
-    return () => window.removeEventListener("resize", handleResize);
+    return () => {
+      window.removeEventListener("resize", handleResize);
+      clearTimeout(timer);
+    };
   }, []);
 
-  // Generate complete layout
+  // Generate complete layout.
+  // screenDims in deps means resizing the window gives generateLayout
+  // a new identity, which triggers Main's effect to call it again.
   const generateLayout = useCallback((coinsList) => {
     if (!coinsList.length) return;
 
-    const { w: W, h: H } = screenRef.current;
+    const W = screenDims.w;
+    const H = screenDims.h;
+    if (!W || !H) return;
+
     const timeKey = TIME_PERIOD_MAP[time];
     const sizeMapper = createSizeMapper(coinsList, timeKey);
     
@@ -59,24 +70,25 @@ export const useBalloonLayout = (coins, time) => {
     const result = coinsList.map((coin, i) => {
       const percent = Math.abs(Number(coin[`percent_change_${timeKey}`])) || 0;
       const total = coinsList.length;
-      const size = sizeMapper(percent, coin); // Pass coin for rank-based sizing
+      const size = sizeMapper(percent, coin);
       
       // Base grid position
       const baseX = (i % cols) * spacingX + spacingX / 2;
       const baseY = Math.floor(i / cols) * spacingY + spacingY / 2;
       
-      // Add randomization - more aggressive for smaller balloons
-      // Smaller balloons get up to 80% of spacing as random offset
-      // Larger balloons get up to 30% of spacing as random offset
-      const sizeRatio = (size - 90) / (300 - 90); // 0 for smallest, 1 for largest
-      const randomFactor = 0.8 - (sizeRatio * 0.5); // 0.8 for small, 0.3 for large
+      // Randomization — deterministic per index so resizes don't cause random jumps
+      const sizeRatio = (size - 90) / (300 - 90);
+      const randomFactor = 0.8 - (sizeRatio * 0.5);
       
-      const randomOffsetX = (Math.random() - 0.5) * spacingX * randomFactor;
-      const randomOffsetY = (Math.random() - 0.5) * spacingY * randomFactor;
+      const randomOffsetX = (seededRandom(i * 2) - 0.5) * spacingX * randomFactor;
+      const randomOffsetY = (seededRandom(i * 2 + 1) - 0.5) * spacingY * randomFactor;
       
-      // Apply random offset while keeping balloons within bounds
-      const cx = Math.max(size / 2, Math.min(W - size / 2, baseX + randomOffsetX));
-      const cy = Math.max(size / 2, Math.min(H - size / 2, baseY + randomOffsetY));
+      // Clamp to screen — use tighter margin on mobile sides only
+      const isMobile = W < MOBILE_BREAKPOINT;
+      const sideMargin = isMobile ? size * 0.15 : size / 2;
+      const vertMargin = size / 2;
+      const cx = Math.max(sideMargin, Math.min(W - sideMargin, baseX + randomOffsetX));
+      const cy = Math.max(vertMargin, Math.min(H - vertMargin, baseY + randomOffsetY));
 
       return {
         id: coin.id,
@@ -95,7 +107,7 @@ export const useBalloonLayout = (coins, time) => {
 
     layoutRef.current = result;
     setBalloons(result);
-  }, [time]);
+  }, [time, screenDims]);
 
   // Update only sizes when time changes
   const updateSizes = useCallback((coinsList) => {
@@ -108,7 +120,7 @@ export const useBalloonLayout = (coins, time) => {
       const percent = Math.abs(
         Number(balloon.coin[`percent_change_${timeKey}`]) || 0
       );
-      balloon.size = sizeMapper(percent, balloon.coin); // Pass coin for rank-based sizing
+      balloon.size = sizeMapper(percent, balloon.coin);
     });
 
     setBalloons([...layoutRef.current]);
@@ -118,6 +130,6 @@ export const useBalloonLayout = (coins, time) => {
     balloons,
     generateLayout,
     updateSizes,
-    screenDimensions: screenRef.current
+    screenDimensions: screenDims
   };
 };

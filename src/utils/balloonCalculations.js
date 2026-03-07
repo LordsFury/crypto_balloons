@@ -1,4 +1,4 @@
-import { TIME_PERIOD_SIZING } from "@/config/balloonConstants";
+import { TIME_PERIOD_SIZING, MOBILE_BREAKPOINT } from "@/config/balloonConstants";
 
 /**
  * Parse range string into min and max values
@@ -91,15 +91,18 @@ export const createSizeMapper = (coins, timeKey) => {
 };
 
 /**
- * Calculate grid layout dimensions
+ * Calculate grid layout dimensions — aspect-ratio aware.
+ * Portrait screens get fewer columns and more rows so balloons
+ * pack tightly instead of being stretched horizontally.
  * @param {number} totalItems - Total number of items
  * @param {number} width - Container width
  * @param {number} height - Container height
  * @returns {Object} - Layout configuration
  */
 export const calculateGridLayout = (totalItems, width, height) => {
-  const rows = Math.round(Math.sqrt(totalItems));
-  const cols = Math.ceil(totalItems / rows);
+  const aspectRatio = width / height;
+  const cols = Math.max(1, Math.round(Math.sqrt(totalItems * aspectRatio)));
+  const rows = Math.ceil(totalItems / cols);
   const spacingX = width / cols;
   const spacingY = height / rows;
 
@@ -107,14 +110,19 @@ export const calculateGridLayout = (totalItems, width, height) => {
 };
 
 /**
- * Calculate safe position within bounds
+ * Calculate safe position within bounds.
+ * On small screens, allow balloons to extend past the edge so there's
+ * no visible gap — the SVG has ~20% transparent padding around the body.
  * @param {number} position - Target position
  * @param {number} size - Balloon size
  * @param {number} max - Maximum boundary
  * @returns {number} - Safe position
  */
-export const getSafePosition = (position, size, max) => {
-  return Math.min(Math.max(position, size / 2), max - size / 2);
+export const getSafePosition = (position, size, max, axis = 'x') => {
+  const isMobile = typeof window !== 'undefined' && window.innerWidth < MOBILE_BREAKPOINT;
+  // On mobile, only reduce the horizontal (side) margin
+  const margin = (isMobile && axis === 'x') ? size * 0.15 : size / 2;
+  return Math.min(Math.max(position, margin), max - margin);
 };
 
 /**

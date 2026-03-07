@@ -1,6 +1,6 @@
 import { useState, useEffect, useRef } from "react";
 import { parseRange } from "@/utils/balloonCalculations";
-import { MOBILE_BREAKPOINT, MAX_BALLOONS_MOBILE, MAX_BALLOONS_DESKTOP } from "@/config/balloonConstants";
+import { MAX_BALLOONS_DESKTOP } from "@/config/balloonConstants";
 
 /**
  * Custom hook for fetching and managing crypto ticker data
@@ -45,13 +45,11 @@ export const useCryptoData = (range) => {
   useEffect(() => {
     if (!allCoins.length) return;
 
-    const isMobile = typeof window !== "undefined" && window.innerWidth < MOBILE_BREAKPOINT;
-    const maxBalloons = isMobile ? MAX_BALLOONS_MOBILE : MAX_BALLOONS_DESKTOP;
     const [min, max] = parseRange(range);
     
     const filtered = allCoins
       .filter(c => c.rank >= min && c.rank <= max)
-      .slice(0, maxBalloons);
+      .slice(0, MAX_BALLOONS_DESKTOP);
     
     setFilteredCoins(filtered);
   }, [range, allCoins]);

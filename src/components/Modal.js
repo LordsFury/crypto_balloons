@@ -190,7 +190,7 @@ const Modal = ({ selectedCoin, closePopup }) => {
                 <h3 className="text-gray-700 font-semibold mb-3 text-sm uppercase tracking-wider">
                   Price Changes
                 </h3>
-                <div className="flex justify-between gap-2">
+                <div className="flex flex-wrap justify-center gap-2 sm:justify-between">
                   <ChangeItem label="1h" value={selectedCoin.percent_change_1h} />
                   <ChangeItem label="24h" value={selectedCoin.percent_change_24h} />
                   <ChangeItem label="7d" value={selectedCoin.percent_change_7d} />

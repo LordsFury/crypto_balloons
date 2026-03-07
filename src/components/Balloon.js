@@ -51,7 +51,7 @@ const Balloon = ({
       viewBox="0 0 4001 4001"
       vectorEffect="non-scaling-stroke"
       fill={color}
-      style={{ display: "block", pointerEvents: "none" }}
+      style={{ display: "block", pointerEvents: "none", transition: "width 0.4s ease-out, height 0.4s ease-out" }}
     >
       <BalloonDefs color={color} />
       <BalloonShape 
