@@ -126,10 +126,35 @@ export const useBalloonLayout = (coins, time) => {
     setBalloons([...layoutRef.current]);
   }, [time]);
 
+  // Merge live coin data into existing balloons without regenerating layout.
+  // Updates each balloon's coin reference and recalculates sizes so springs
+  // animate smoothly to the new values.
+  const updateCoinData = useCallback((coinsList) => {
+    if (!layoutRef.current.length || !coinsList.length) return;
+
+    const coinMap = new Map(coinsList.map(c => [c.id, c]));
+    const timeKey = TIME_PERIOD_MAP[time];
+    const sizeMapper = createSizeMapper(coinsList, timeKey);
+
+    let changed = false;
+    layoutRef.current.forEach(balloon => {
+      const fresh = coinMap.get(balloon.id);
+      if (!fresh) return;
+      // Always update coin reference so percent/price display refreshes
+      if (fresh !== balloon.coin) changed = true;
+      balloon.coin = fresh;
+      const percent = Math.abs(Number(fresh[`percent_change_${timeKey}`]) || 0);
+      balloon.size = sizeMapper(percent, fresh);
+    });
+
+    if (changed) setBalloons([...layoutRef.current]);
+  }, [time]);
+
   return {
     balloons,
     generateLayout,
     updateSizes,
+    updateCoinData,
     screenDimensions: screenDims
   };
 };

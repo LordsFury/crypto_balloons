@@ -60,18 +60,34 @@ export default function Main() {
   const { time } = useTime();
   const { range } = useRange();
   
-  // Fetch and filter crypto data
+  // Fetch and filter crypto data (WebSocket primary, HTTP fallback)
   const { filteredCoins, isLoading } = useCryptoData(range);
   
   // Manage balloon layout and positioning
-  const { balloons, generateLayout, updateSizes, screenDimensions } = 
+  const { balloons, generateLayout, updateSizes, updateCoinData, screenDimensions } = 
     useBalloonLayout(filteredCoins, time);
 
-  // Generate initial layout when coins are loaded
+  // Track whether initial layout has been generated for the current coin set.
+  // Reset when range changes so a new coin set gets a fresh layout.
+  const layoutReadyRef = useRef(false);
+  const prevRangeRef = useRef(range);
+  if (prevRangeRef.current !== range) {
+    prevRangeRef.current = range;
+    layoutReadyRef.current = false;
+  }
+
+  // First load or range change: generate full layout.
+  // Live data update (same coins, new values): merge into existing layout.
+  // screenDims change: generateLayout identity changes → triggers full relayout.
   useEffect(() => {
     if (!filteredCoins.length || isLoading) return;
-    generateLayout(filteredCoins);
-  }, [filteredCoins, isLoading, generateLayout]);
+    if (!layoutReadyRef.current) {
+      generateLayout(filteredCoins);
+      layoutReadyRef.current = true;
+    } else {
+      updateCoinData(filteredCoins);
+    }
+  }, [filteredCoins, isLoading, generateLayout, updateCoinData]);
 
   // Update sizes when time period changes
   useEffect(() => {

@@ -1,11 +1,17 @@
-import { useState, useEffect, useRef } from "react";
+import { useState, useEffect, useRef, useCallback } from "react";
 import { parseRange } from "@/utils/balloonCalculations";
 import { MAX_BALLOONS_DESKTOP } from "@/config/balloonConstants";
 
+// Derive WebSocket URL from the REST URL (http→ws, https→wss)
+function getWsUrl() {
+  const base = process.env.NEXT_PUBLIC_CRYPTO_DATA_URL || "";
+  return base.replace(/^http/, "ws");
+}
+
 /**
- * Custom hook for fetching and managing crypto ticker data
- * @param {string} range - Current range filter
- * @returns {Object} - Coins data and loading state
+ * Custom hook for fetching and managing crypto ticker data.
+ * Primary: WebSocket (instant initial snapshot + live pushes every 5 min).
+ * Fallback: HTTP fetch if WebSocket fails to connect.
  */
 export const useCryptoData = (range) => {
   const [allCoins, setAllCoins] = useState([]);
@@ -13,33 +19,99 @@ export const useCryptoData = (range) => {
   const [isLoading, setIsLoading] = useState(true);
   const [error, setError] = useState(null);
 
-  // Fetch data once on mount
+  // Preserve the initial random shuffle order across live updates.
+  // On first data arrival we establish a shuffled order of IDs;
+  // subsequent updates merge new values into that same order.
+  const orderRef = useRef(null);        // string[] of coin IDs in display order
+  const wsRef = useRef(null);
+  const reconnectTimer = useRef(null);
+
+  // Merge incoming tickers into the current order (or create initial order)
+  const applyTickers = useCallback((tickers) => {
+    if (!tickers?.length) return;
+
+    const tickerMap = new Map(tickers.map((t) => [t.id, t]));
+
+    if (!orderRef.current) {
+      // First arrival: shuffle to randomise balloon placement
+      const shuffled = [...tickers].sort(() => Math.random() - 0.5);
+      orderRef.current = shuffled.map((t) => t.id);
+      setAllCoins(shuffled);
+    } else {
+      // Subsequent: merge new data into existing order (no position jumps)
+      const updated = orderRef.current
+        .map((id) => tickerMap.get(id))
+        .filter(Boolean);
+      // Append any brand-new coins at the end
+      for (const t of tickers) {
+        if (!orderRef.current.includes(t.id)) {
+          updated.push(t);
+          orderRef.current.push(t.id);
+        }
+      }
+      setAllCoins(updated);
+    }
+
+    setIsLoading(false);
+    setError(null);
+  }, []);
+
+  // WebSocket connection with auto-reconnect
   useEffect(() => {
-    const fetchData = async () => {
+    let unmounted = false;
+    let httpFallbackDone = false;
+
+    function connect() {
+      if (unmounted) return;
+      const ws = new WebSocket(getWsUrl());
+      wsRef.current = ws;
+
+      ws.onmessage = (event) => {
+        try {
+          const msg = JSON.parse(event.data);
+          const tickers = msg.tickers || msg;
+          if (Array.isArray(tickers)) applyTickers(tickers);
+        } catch { /* ignore malformed frames */ }
+      };
+
+      ws.onerror = () => {
+        // If WS never delivered data, fall back to HTTP once
+        if (!httpFallbackDone && !orderRef.current) {
+          httpFallbackDone = true;
+          fetchViaHttp();
+        }
+      };
+
+      ws.onclose = () => {
+        if (unmounted) return;
+        // Reconnect after 3 s
+        reconnectTimer.current = setTimeout(connect, 3000);
+      };
+    }
+
+    async function fetchViaHttp() {
       try {
-        setIsLoading(true);
-        
         const res = await fetch(
           `${process.env.NEXT_PUBLIC_CRYPTO_DATA_URL}/api/crypto/tickers`
         );
-        
-        if (!res.ok) {
-          throw new Error(`HTTP error! status: ${res.status}`);
-        }
-        
+        if (!res.ok) throw new Error(`HTTP ${res.status}`);
         const data = await res.json();
-        const shuffled = [...data.tickers].sort(() => Math.random() - 0.5);
-        setAllCoins(shuffled);
+        applyTickers(data.tickers);
       } catch (err) {
-        console.error("Failed to fetch crypto data:", err);
+        console.error("HTTP fallback failed:", err);
         setError(err.message);
-      } finally {
         setIsLoading(false);
       }
-    };
+    }
 
-    fetchData();
-  }, []);
+    connect();
+
+    return () => {
+      unmounted = true;
+      clearTimeout(reconnectTimer.current);
+      if (wsRef.current) wsRef.current.close();
+    };
+  }, [applyTickers]);
 
   // Filter coins when range or allCoins change
   useEffect(() => {
