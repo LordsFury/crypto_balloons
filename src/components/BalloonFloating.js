@@ -92,6 +92,8 @@ const BalloonFloating = ({
     baseDragStart();
     if (elRef.current) {
       elRef.current.style.animationPlayState = "paused";
+      // Highlight: mark the outer motion.div as dragging
+      elRef.current.parentElement?.setAttribute("data-dragging", "true");
     }
     // Cancel any in-flight catch-up and reset guard
     if (catchUpRafRef.current) {
@@ -228,6 +230,7 @@ const BalloonFloating = ({
   const handlePanEnd = useCallback(() => {
     if (elRef.current) {
       elRef.current.style.animationPlayState = "running";
+      elRef.current.parentElement?.removeAttribute("data-dragging");
     }
     stopCollision();
     scale.set(size / BASE_SIZE);

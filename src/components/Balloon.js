@@ -109,6 +109,7 @@ const BalloonShape = ({ color, isPositive, onPointerDown, onPointerMove, onPoint
   return (
     <>
       <g
+        className="balloon-shape"
         style={{ pointerEvents: "auto", cursor: "grab" }}
         onPointerDown={onPointerDown}
         onPointerMove={onPointerMove}

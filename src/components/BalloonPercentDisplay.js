@@ -12,8 +12,8 @@ const BalloonPercentDisplay = ({ displayPercent, percentY, size }) => {
   if (displayPercent === undefined) return null;
 
   // Scale background and text size based on balloon size
-  const bgRadiusX = Math.max(450, Math.min(600, size * 2.3));
-  const bgRadiusY = Math.max(130, Math.min(170, size * 0.65));
+  const bgRadiusX = Math.max(520, Math.min(680, size * 2.6));
+  const bgRadiusY = Math.max(170, Math.min(220, size * 0.85));
   const bgInnerRadiusX = bgRadiusX * 0.87;
   const bgInnerRadiusY = bgRadiusY * 0.75;
   const fontSize = Math.max(200, Math.min(240, size * 0.9));
