@@ -1,4 +1,4 @@
-import { TIME_PERIOD_SIZING, MOBILE_BREAKPOINT } from "@/config/balloonConstants";
+import { TIME_PERIOD_SIZING, MOBILE_BREAKPOINT, BALLOON_COLORS } from "@/config/balloonConstants";
 
 /**
  * Parse range string into min and max values
@@ -150,3 +150,47 @@ export const getRectCenter = (rect) => {
     y: rect.top + rect.height / 2
   };
 };
+
+// ── Logo-aware balloon color picker ──
+
+function hexToHSL(hex) {
+  const r = parseInt(hex.slice(1, 3), 16) / 255;
+  const g = parseInt(hex.slice(3, 5), 16) / 255;
+  const b = parseInt(hex.slice(5, 7), 16) / 255;
+  const max = Math.max(r, g, b), min = Math.min(r, g, b);
+  let h = 0, s = 0;
+  const l = (max + min) / 2;
+  if (max !== min) {
+    const d = max - min;
+    s = l > 0.5 ? d / (2 - max - min) : d / (max + min);
+    if (max === r) h = ((g - b) / d + (g < b ? 6 : 0)) / 6;
+    else if (max === g) h = ((b - r) / d + 2) / 6;
+    else h = ((r - g) / d + 4) / 6;
+  }
+  return { h: h * 360, s: s * 100, l: l * 100 };
+}
+
+const BALLOON_HSL = BALLOON_COLORS.map(hexToHSL);
+
+/**
+ * Pick the best-contrasting balloon color for a coin based on its logo color.
+ * Falls back to index-based cycling if logo_color is unavailable.
+ */
+export function pickBalloonColor(coin, fallbackIndex) {
+  if (!coin.logo_color) return BALLOON_COLORS[fallbackIndex % BALLOON_COLORS.length];
+
+  const logo = hexToHSL(coin.logo_color);
+  let bestIdx = 0, bestScore = -1;
+
+  BALLOON_HSL.forEach((bHSL, i) => {
+    const lightDiff = Math.abs(bHSL.l - logo.l) / 100;
+    const rawHueDiff = Math.abs(bHSL.h - logo.h);
+    const hueDiff = Math.min(rawHueDiff, 360 - rawHueDiff) / 180;
+    // If logo has low saturation (grey/white/black), only use lightness
+    const hueWeight = logo.s < 15 ? 0 : 0.4;
+    const score = lightDiff * (1 - hueWeight) + hueDiff * hueWeight;
+    if (score > bestScore) { bestScore = score; bestIdx = i; }
+  });
+
+  return BALLOON_COLORS[bestIdx];
+}

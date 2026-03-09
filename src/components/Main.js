@@ -9,7 +9,7 @@ import { useCryptoData } from "@/hooks/useCryptoData";
 import { useBalloonLayout } from "@/hooks/useBalloonLayout";
 import { getSafePosition } from "@/utils/balloonCalculations";
 import { balloonPositionManager } from "@/utils/balloonPositionManager";
-import { RESET_POSITIONS_ON_TIME_CHANGE } from "@/config/balloonConstants";
+import { RESET_POSITIONS_ON_TIME_CHANGE, BASE_SIZE } from "@/config/balloonConstants";
 
 /**
  * Main Component
@@ -68,11 +68,16 @@ export default function Main() {
     useBalloonLayout(filteredCoins, time);
 
   // Track whether initial layout has been generated for the current coin set.
-  // Reset when range changes so a new coin set gets a fresh layout.
+  // Reset when range or screen dimensions change so layout regenerates.
   const layoutReadyRef = useRef(false);
   const prevRangeRef = useRef(range);
+  const prevDimsRef = useRef(screenDimensions);
   if (prevRangeRef.current !== range) {
     prevRangeRef.current = range;
+    layoutReadyRef.current = false;
+  }
+  if (prevDimsRef.current !== screenDimensions) {
+    prevDimsRef.current = screenDimensions;
     layoutReadyRef.current = false;
   }
 
@@ -95,14 +100,14 @@ export default function Main() {
     updateSizes(filteredCoins);
   }, [time]);
 
-  // Reset balloon positions when time or range changes (optional feature)
+  // Reset balloon positions when range changes (optional feature)
   // This gives a fresh layout when switching data views
   // Uses resetSilently() to prevent jarring back-animation before transition
   useEffect(() => {
     if (RESET_POSITIONS_ON_TIME_CHANGE) {
       balloonPositionManager.resetSilently();
     }
-  }, [time, range]);
+  }, [range]);
 
   // Reset drag offsets on resize so balloons spring cleanly to new positions
   useEffect(() => {
@@ -135,8 +140,8 @@ export default function Main() {
               <BalloonFloating
                 key={balloon.id}
                 {...balloon}
-                x={safeX - balloon.size / 2}
-                y={safeY - balloon.size / 2}
+                x={safeX - BASE_SIZE / 2}
+                y={safeY - BASE_SIZE / 2}
                 time={time}
                 onBalloonClick={setSelectedCoin}
                 containerRef={constraintRef}

@@ -1,22 +1,26 @@
 "use client";
 import { useRange } from "@/context/RangeContext";
 import { useTime } from "@/context/TimeContext";
-import React, { useState, useEffect } from "react";
-import { FiMenu, FiX } from "react-icons/fi";
+import React, { useState, useEffect, useRef } from "react";
+import { FiMenu, FiX, FiChevronDown } from "react-icons/fi";
 import { motion, AnimatePresence } from "framer-motion";
 
 const Navbar = () => {
   const { time, setTime } = useTime();
   const { range, setRange } = useRange();
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
-  const [windowWidth, setWindowWidth] = useState(0);
+  const [rangeDropdownOpen, setRangeDropdownOpen] = useState(false);
+  const dropdownRef = useRef(null);
 
-  // Track window width for responsive pill count
+  // Close dropdown on outside click
   useEffect(() => {
-    const handleResize = () => setWindowWidth(window.innerWidth);
-    handleResize();
-    window.addEventListener("resize", handleResize);
-    return () => window.removeEventListener("resize", handleResize);
+    const handleClickOutside = (e) => {
+      if (dropdownRef.current && !dropdownRef.current.contains(e.target)) {
+        setRangeDropdownOpen(false);
+      }
+    };
+    document.addEventListener("pointerdown", handleClickOutside);
+    return () => document.removeEventListener("pointerdown", handleClickOutside);
   }, []);
 
   const timeOptions = [
@@ -31,56 +35,12 @@ const Navbar = () => {
     const start = i * 50 + 1;
     const end = (i + 1) * 50;
     return {
-      value: `${start}-${end}`,      // keep value compact for logic
-      label: `${start} - ${end}`     // spaced for UI
+      value: `${start}-${end}`,
+      label: `${start} – ${end}`
     };
   });
 
-  // Helpers for range navigation
-  const prevRange = () => {
-    const [s] = range.split("-").map(Number);
-    if (s > 1) {
-      const start = Math.max(1, s - 50);
-      setRange(`${start}-${start + 49}`);
-    }
-  };
-
-  const nextRange = () => {
-    const [s] = range.split("-").map(Number);
-    if (s < 451) {
-      const start = s + 50;
-      setRange(`${start}-${start + 49}`);
-    }
-  };
-
-  const visiblePills = windowWidth >= 1280 ? 4 : windowWidth >= 1024 ? 3 : 0;
-
-  const renderRangePills = (count) => {
-    const maxBase = 451; // last valid start (451-500)
-    const currentBase = Number(range.split("-")[0]);
-    // Clamp so we always have enough pills: if near the end, shift start back
-    const startBase = Math.min(currentBase, maxBase - (count - 1) * 50);
-    return Array.from({ length: count }).map((_, offset) => {
-      const base = startBase + offset * 50;
-      if (base < 1 || base > maxBase) return null;
-      const value = `${base}-${base + 49}`;
-      const label = `${base} - ${base + 49}`;
-      const active = range === value;
-
-      return (
-        <button
-          key={value}
-          onClick={() => setRange(value)}
-          className={`px-4 py-1.5 rounded-lg cursor-pointer text-sm font-semibold transition-all whitespace-nowrap ${active
-            ? "bg-white text-purple-900 shadow-md scale-105"
-            : "text-white/80 hover:bg-white/20 hover:text-white"
-            }`}
-        >
-          {label}
-        </button>
-      );
-    });
-  };
+  const currentRangeLabel = rangeOptions.find(o => o.value === range)?.label || range;
 
   return (
     <nav className="w-full bg-linear-to-r from-purple-900 via-purple-600 to-blue-900 shadow-2xl fixed top-0 left-0 z-50">
@@ -100,25 +60,53 @@ const Navbar = () => {
           </div>
           {/* Desktop Controls */}
           <div className="hidden lg:flex items-center space-x-6">
-            {/* Range Selector */}
-            <div className="flex items-center gap-2">
-              <button onClick={prevRange} className="range-btn w-8 h-8 rounded-lg bg-white/10 hover:bg-white/20 text-white transition">◀</button>
-
-              {/* Pills only lg+ */}
-              {visiblePills > 0 && (
-                <div className="flex gap-2 bg-white/10 backdrop-blur-md rounded-xl p-1 shadow-lg">
-                  {renderRangePills(visiblePills)}
-                </div>
-              )}
-
-              {/* Compact current range md only */}
-              {windowWidth >= 768 && windowWidth < 1024 && (
-                <button className="px-5 py-1.5 rounded-lg bg-white text-purple-900 font-semibold shadow-md">
-                  {range}
-                </button>
-              )}
-
-              <button onClick={nextRange} className="range-btn w-8 h-8 rounded-lg bg-white/10 hover:bg-white/20 text-white transition">▶</button>
+            {/* Range Dropdown */}
+            <div ref={dropdownRef} className="relative">
+              <button
+                onClick={() => setRangeDropdownOpen(!rangeDropdownOpen)}
+                className="flex items-center gap-2 px-4 py-2 rounded-xl bg-white/10 backdrop-blur-md text-white font-semibold text-sm shadow-lg hover:bg-white/20 transition-colors cursor-pointer"
+              >
+                <span className="text-white/60 text-xs font-medium">Rank</span>
+                <span>{currentRangeLabel}</span>
+                <FiChevronDown
+                  style={{ transform: rangeDropdownOpen ? "rotate(180deg)" : "rotate(0deg)", transition: "transform 0.1s" }}
+                  size={16}
+                />
+              </button>
+              <AnimatePresence>
+                {rangeDropdownOpen && (
+                  <motion.div
+                    initial={{ opacity: 0, y: -8, scale: 0.95 }}
+                    animate={{ opacity: 1, y: 0, scale: 1 }}
+                    exit={{ opacity: 0, y: -8, scale: 0.95 }}
+                    transition={{ duration: 0.15 }}
+                    className="absolute top-full mt-2 right-0 w-40 bg-linear-to-b from-purple-700/80 via-purple-800/75 to-blue-900/80 backdrop-blur-2xl rounded-xl shadow-2xl border border-white/15 overflow-hidden z-50"
+                  >
+                    <div className="py-1">
+                      {rangeOptions.map((option) => {
+                        const active = range === option.value;
+                        return (
+                          <button
+                            key={option.value}
+                            onClick={() => {
+                              setRange(option.value);
+                              setRangeDropdownOpen(false);
+                            }}
+                            className={`w-full text-center px-4 py-2.5 text-sm font-medium transition-colors duration-150 cursor-pointer ${
+                              active
+                                ? "bg-white/20 text-white"
+                                : "text-white/70 hover:bg-white/15 hover:text-white"
+                            }`}
+                          >
+                            {option.label}
+                            {active && " ✓"}
+                          </button>
+                        );
+                      })}
+                    </div>
+                  </motion.div>
+                )}
+              </AnimatePresence>
             </div>
 
             {/* Time Buttons */}
@@ -158,28 +146,33 @@ const Navbar = () => {
               className="lg:hidden overflow-hidden"
             >
               <div className="py-4 space-y-4 border-t border-white/20">
-                <div className="grid grid-cols-2 gap-2">
-                  {rangeOptions.map((option) => (
-                    <button
-                      key={option.value}
-                      onClick={() => setRange(option.value)}
-                      className={`py-2 rounded-lg text-sm cursor-pointer font-semibold transition-all whitespace-nowrap ${range === option.value
-                        ? "bg-white text-purple-900 shadow-md"
-                        : "bg-white/10 text-white/80 hover:bg-white/20"
-                        }`}
-                    >
-                      {option.label}
-                    </button>
-                  ))}
+                {/* Range Selection */}
+                <div>
+                  <label className="text-white/70 text-sm font-medium block mb-2">Rank Range</label>
+                  <div className="grid grid-cols-2 gap-2">
+                    {rangeOptions.map((option) => (
+                      <button
+                        key={option.value}
+                        onClick={() => setRange(option.value)}
+                        className={`py-2 rounded-lg text-sm cursor-pointer font-semibold transition-all whitespace-nowrap ${range === option.value
+                          ? "bg-white text-purple-900 shadow-md"
+                          : "bg-white/10 text-white/80 hover:bg-white/20"
+                          }`}
+                      >
+                        {option.label}
+                      </button>
+                    ))}
+                  </div>
                 </div>
-                <div className="mt-2">
+                {/* Time Selection */}
+                <div>
                   <label className="text-white/70 text-sm font-medium block mb-2">Time Period</label>
                   <div className="grid grid-cols-3 gap-2">
                     {timeOptions.map((option) => (
                       <button
                         key={option.value}
                         onClick={() => setTime(option.value)}
-                        className={`py-2 rounded-lg text-smfont-semibold transition-all ${time === option.value
+                        className={`py-2 rounded-lg text-sm font-semibold transition-all ${time === option.value
                           ? "bg-white text-purple-900 shadow-md"
                           : "bg-white/10 text-white/80 hover:bg-white/20"
                           }`}

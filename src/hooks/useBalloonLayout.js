@@ -1,10 +1,10 @@
 import { useState, useEffect, useCallback, useRef } from "react";
 import { 
   calculateGridLayout, 
-  createSizeMapper 
+  createSizeMapper,
+  pickBalloonColor 
 } from "@/utils/balloonCalculations";
 import { 
-  BALLOON_COLORS, 
   DEFAULT_DURATION, 
   DEFAULT_DRIFT, 
   DEFAULT_FLOAT_DISTANCE,
@@ -27,6 +27,10 @@ export const useBalloonLayout = (coins, time) => {
   const [balloons, setBalloons] = useState([]);
   const layoutRef = useRef([]);
   const [screenDims, setScreenDims] = useState({ w: 0, h: 0 });
+
+  // Ref so generateLayout always reads the latest time without changing identity
+  const timeRef = useRef(time);
+  timeRef.current = time;
 
   // Track screen dimensions with debounced resize
   useEffect(() => {
@@ -58,7 +62,7 @@ export const useBalloonLayout = (coins, time) => {
     const H = screenDims.h;
     if (!W || !H) return;
 
-    const timeKey = TIME_PERIOD_MAP[time];
+    const timeKey = TIME_PERIOD_MAP[timeRef.current];
     const sizeMapper = createSizeMapper(coinsList, timeKey);
     
     const { cols, spacingX, spacingY } = calculateGridLayout(
@@ -97,7 +101,7 @@ export const useBalloonLayout = (coins, time) => {
         depth: 0.3 + (i / total) * 0.7,
         cx,
         cy,
-        color: BALLOON_COLORS[i % BALLOON_COLORS.length],
+        color: pickBalloonColor(coin, i),
         duration: DEFAULT_DURATION,
         drift: DEFAULT_DRIFT,
         floatDistance: DEFAULT_FLOAT_DISTANCE,
@@ -107,7 +111,7 @@ export const useBalloonLayout = (coins, time) => {
 
     layoutRef.current = result;
     setBalloons(result);
-  }, [time, screenDims]);
+  }, [screenDims]);
 
   // Update only sizes when time changes
   const updateSizes = useCallback((coinsList) => {
