@@ -1,11 +1,20 @@
 import React, { useEffect, useState } from 'react';
-import { AnimatePresence, motion, useSpring, useTransform } from "framer-motion";
+import { AnimatePresence, motion, useSpring } from "framer-motion";
 import ChangeItem from './ChangeItem';
 import Image from 'next/image';
 import Link from 'next/link';
+import { TIME_PERIOD_MAP } from "@/config/balloonConstants";
 import { useTime } from "@/context/TimeContext";
+import { useCurrency } from "@/context/CurrencyContext";
+import useExchangeRates from "@/hooks/useExchangeRates";
+import {
+  convertUsdAmount,
+  formatCurrencyAmount,
+  getCurrencySymbol,
+  getResolvedCurrencyCode,
+} from "@/utils/currency";
 
-const AnimatedNumber = ({ value, formatPrice = false, isPercentage = false }) => {
+const AnimatedNumber = ({ value, isPercentage = false }) => {
   const spring = useSpring(0, { stiffness: 100, damping: 30 });
   const [displayValue, setDisplayValue] = useState(value);
 
@@ -17,15 +26,6 @@ const AnimatedNumber = ({ value, formatPrice = false, isPercentage = false }) =>
     return () => unsubscribe();
   }, [value, spring]);
 
-  if (formatPrice) {
-    const formatted = displayValue < 0.01 
-      ? `$${displayValue.toFixed(6)}` 
-      : displayValue < 1 
-      ? `$${displayValue.toFixed(4)}` 
-      : `$${displayValue.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`;
-    return <span>{formatted}</span>;
-  }
-
   if (isPercentage) {
     return <span>{Math.abs(displayValue).toFixed(2)}%</span>;
   }
@@ -36,6 +36,9 @@ const AnimatedNumber = ({ value, formatPrice = false, isPercentage = false }) =>
 const Modal = ({ selectedCoin, closePopup }) => {
 
   const { time } = useTime();
+  const { currency } = useCurrency();
+  const { rates } = useExchangeRates();
+  const resolvedCurrencyCode = getResolvedCurrencyCode(currency, rates);
 
   const formatNumber = (num) => {
     if (!num) return "0";
@@ -46,22 +49,7 @@ const Modal = ({ selectedCoin, closePopup }) => {
     return num.toLocaleString();
   };
 
-  const formatPrice = (price) => {
-    if (!price) return "$0.00";
-    if (price < 0.01) return `$${price.toFixed(6)}`;
-    if (price < 1) return `$${price.toFixed(4)}`;
-    return `$${price.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`;
-  };
-
-  const timeMap = {
-    hour: "1h",
-    day: "24h",
-    week: "7d",
-    month: "30d",
-    year: "1y",
-  };
-
-  const currentPercentChange = selectedCoin?.[`percent_change_${timeMap[time]}`] || 0;
+  const currentPercentChange = selectedCoin?.[`percent_change_${TIME_PERIOD_MAP[time]}`] || 0;
   const is24hPositive = currentPercentChange >= 0;
 
   return (
@@ -133,9 +121,18 @@ const Modal = ({ selectedCoin, closePopup }) => {
 
               {/* Price Display with Animated Percentage */}
               <div className="relative mt-2 flex items-end gap-3">
-                <div className="text-3xl mb-1 font-bold text-white">
-                  {formatPrice(selectedCoin.price)}
-                </div>
+                <AnimatePresence mode="wait">
+                  <motion.div
+                    key={`${selectedCoin.id}-${currency}-price`}
+                    initial={{ opacity: 0, y: 6 }}
+                    animate={{ opacity: 1, y: 0 }}
+                    exit={{ opacity: 0, y: -6 }}
+                    transition={{ duration: 0.18 }}
+                    className="text-3xl mb-1 font-bold text-white"
+                  >
+                    {formatCurrencyAmount(selectedCoin.price, currency, rates)}
+                  </motion.div>
+                </AnimatePresence>
                 {selectedCoin.percent_change_24h !== undefined && (
                   <motion.div
                     key={time}
@@ -166,8 +163,16 @@ const Modal = ({ selectedCoin, closePopup }) => {
               {/* Market Stats Grid */}
               <div className="grid grid-cols-2 gap-4">
                 {[
-                  { label: "Market Cap", value: formatNumber(Number(selectedCoin.market_cap || 0)), prefix: "$" },
-                  { label: "24h Volume", value: formatNumber(Number(selectedCoin.volume || 0)), prefix: "$" },
+                  {
+                    label: "Market Cap",
+                    value: formatNumber(convertUsdAmount(selectedCoin.market_cap || 0, currency, rates)),
+                    prefix: getCurrencySymbol(resolvedCurrencyCode)
+                  },
+                  {
+                    label: "24h Volume",
+                    value: formatNumber(convertUsdAmount(selectedCoin.volume || 0, currency, rates)),
+                    prefix: getCurrencySymbol(resolvedCurrencyCode)
+                  },
                   { label: "Circulating Supply", value: formatNumber(Number(selectedCoin.circulating_supply || 0)) },
                   { label: "Max Supply", value: selectedCoin.max_supply ? formatNumber(Number(selectedCoin.max_supply)) : "∞" }
                 ].map((stat) => (
@@ -178,9 +183,18 @@ const Modal = ({ selectedCoin, closePopup }) => {
                     <p className="text-gray-500 text-xs font-medium uppercase tracking-wider">
                       {stat.label}
                     </p>
-                    <p className="text-gray-900 text-xl font-bold">
-                      {stat.prefix}{stat.value}
-                    </p>
+                    <AnimatePresence mode="wait">
+                      <motion.p
+                        key={`${selectedCoin.id}-${currency}-${stat.label}`}
+                        initial={{ opacity: 0, y: 4 }}
+                        animate={{ opacity: 1, y: 0 }}
+                        exit={{ opacity: 0, y: -4 }}
+                        transition={{ duration: 0.18 }}
+                        className="text-gray-900 text-xl font-bold"
+                      >
+                        {stat.prefix ? `${stat.prefix} ${stat.value}` : stat.value}
+                      </motion.p>
+                    </AnimatePresence>
                   </div>
                 ))}
               </div>

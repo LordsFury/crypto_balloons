@@ -9,7 +9,8 @@ import {
   DEFAULT_DRIFT, 
   DEFAULT_FLOAT_DISTANCE,
   TIME_PERIOD_MAP,
-  MOBILE_BREAKPOINT 
+  MOBILE_BREAKPOINT,
+  NAVBAR_HEIGHT
 } from "@/config/balloonConstants";
 
 // Deterministic pseudo-random so positions stay stable across resizes
@@ -65,10 +66,11 @@ export const useBalloonLayout = (coins, time) => {
     const timeKey = TIME_PERIOD_MAP[timeRef.current];
     const sizeMapper = createSizeMapper(coinsList, timeKey);
     
+    const availableH = H - NAVBAR_HEIGHT;
     const { cols, spacingX, spacingY } = calculateGridLayout(
       coinsList.length,
       W,
-      H
+      availableH
     );
 
     const result = coinsList.map((coin, i) => {
@@ -76,9 +78,9 @@ export const useBalloonLayout = (coins, time) => {
       const total = coinsList.length;
       const size = sizeMapper(percent, coin);
       
-      // Base grid position
+      // Base grid position (offset below navbar)
       const baseX = (i % cols) * spacingX + spacingX / 2;
-      const baseY = Math.floor(i / cols) * spacingY + spacingY / 2;
+      const baseY = NAVBAR_HEIGHT + Math.floor(i / cols) * spacingY + spacingY / 2;
       
       // Randomization — deterministic per index so resizes don't cause random jumps
       const sizeRatio = (size - 90) / (300 - 90);
@@ -92,7 +94,7 @@ export const useBalloonLayout = (coins, time) => {
       const sideMargin = isMobile ? size * 0.15 : size / 2;
       const vertMargin = size / 2;
       const cx = Math.max(sideMargin, Math.min(W - sideMargin, baseX + randomOffsetX));
-      const cy = Math.max(vertMargin, Math.min(H - vertMargin, baseY + randomOffsetY));
+      const cy = Math.max(NAVBAR_HEIGHT + vertMargin, Math.min(H - vertMargin, baseY + randomOffsetY));
 
       return {
         id: coin.id,

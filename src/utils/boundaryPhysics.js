@@ -1,6 +1,7 @@
 /**
  * Screen boundary utilities for balloon physics
  */
+import { NAVBAR_HEIGHT } from "@/config/balloonConstants";
 
 /**
  * Get dynamic drag constraints based on current window size
@@ -71,9 +72,10 @@ export const getBoundaryForce = (x, y) => {
   if (x > W - margin) {
     fx = -(x - (W - margin)) * strength;
   }
-  // Top boundary
-  if (y < margin) {
-    fy = (margin - y) * strength;
+  // Top boundary (account for navbar)
+  const topBound = NAVBAR_HEIGHT + margin;
+  if (y < topBound) {
+    fy = (topBound - y) * strength;
   }
   // Bottom boundary
   if (y > H - margin) {

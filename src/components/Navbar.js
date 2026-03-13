@@ -1,13 +1,18 @@
 "use client";
 import { useRange } from "@/context/RangeContext";
 import { useTime } from "@/context/TimeContext";
+import { useCurrency } from "@/context/CurrencyContext";
 import React, { useState, useEffect, useRef } from "react";
 import { FiMenu, FiX, FiChevronDown } from "react-icons/fi";
 import { motion, AnimatePresence } from "framer-motion";
+import { CURRENCY_OPTIONS } from "@/config/currencyConstants";
+import { getCurrencyFlagSrc } from "@/utils/currency";
+import CurrencySelector from "./CurrencySelector";
 
 const Navbar = () => {
   const { time, setTime } = useTime();
   const { range, setRange } = useRange();
+  const { currency, setCurrency } = useCurrency();
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
   const [rangeDropdownOpen, setRangeDropdownOpen] = useState(false);
   const dropdownRef = useRef(null);
@@ -124,6 +129,8 @@ const Navbar = () => {
                 </button>
               ))}
             </div>
+
+            <CurrencySelector />
           </div>
 
           {/* Mobile Menu Button */}
@@ -139,13 +146,13 @@ const Navbar = () => {
         <AnimatePresence>
           {mobileMenuOpen && (
             <motion.div
-              initial={{ height: 0, opacity: 0 }}
-              animate={{ height: "auto", opacity: 1 }}
-              exit={{ height: 0, opacity: 0 }}
+              initial={{ opacity: 0, y: -8 }}
+              animate={{ opacity: 1, y: 0 }}
+              exit={{ opacity: 0, y: -8 }}
               transition={{ duration: 0.3 }}
-              className="lg:hidden overflow-hidden"
+              className="lg:hidden"
             >
-              <div className="py-4 space-y-4 border-t border-white/20">
+              <div className="py-4 pr-1 space-y-4 border-t border-white/20 max-h-[calc(100vh-4.5rem)] overflow-y-auto">
                 {/* Range Selection */}
                 <div>
                   <label className="text-white/70 text-sm font-medium block mb-2">Rank Range</label>
@@ -153,7 +160,7 @@ const Navbar = () => {
                     {rangeOptions.map((option) => (
                       <button
                         key={option.value}
-                        onClick={() => setRange(option.value)}
+                        onClick={() => { setRange(option.value); setMobileMenuOpen(false); }}
                         className={`py-2 rounded-lg text-sm cursor-pointer font-semibold transition-all whitespace-nowrap ${range === option.value
                           ? "bg-white text-purple-900 shadow-md"
                           : "bg-white/10 text-white/80 hover:bg-white/20"
@@ -171,7 +178,7 @@ const Navbar = () => {
                     {timeOptions.map((option) => (
                       <button
                         key={option.value}
-                        onClick={() => setTime(option.value)}
+                        onClick={() => { setTime(option.value); setMobileMenuOpen(false); }}
                         className={`py-2 rounded-lg text-sm font-semibold transition-all ${time === option.value
                           ? "bg-white text-purple-900 shadow-md"
                           : "bg-white/10 text-white/80 hover:bg-white/20"
@@ -180,6 +187,35 @@ const Navbar = () => {
                         {option.label}
                       </button>
                     ))}
+                  </div>
+                </div>
+
+                <div>
+                  <label className="text-white/70 text-sm font-medium block mb-2">Currency</label>
+                  <div className="grid grid-cols-3 sm:grid-cols-4 gap-2">
+                    {CURRENCY_OPTIONS.map((option) => {
+                      const flagSrc = getCurrencyFlagSrc(option.country);
+
+                      return (
+                        <button
+                          key={option.value}
+                          onClick={() => { setCurrency(option.value); setMobileMenuOpen(false); }}
+                          className={`py-2 px-1 rounded-lg text-xs sm:text-sm font-semibold transition-all flex items-center justify-center gap-1 ${currency === option.value
+                            ? "bg-white text-purple-900 shadow-md"
+                            : "bg-white/10 text-white/80 hover:bg-white/20"
+                            }`}
+                        >
+                          {flagSrc ? (
+                            <img
+                              src={flagSrc}
+                              alt={`${option.value} flag`}
+                              className="inline-block w-5 h-4 rounded-xs object-cover mr-1 align-middle"
+                            />
+                          ) : null}
+                          <span>{option.value}</span>
+                        </button>
+                      );
+                    })}
                   </div>
                 </div>
               </div>

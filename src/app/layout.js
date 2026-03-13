@@ -2,6 +2,7 @@ import { Geist, Geist_Mono } from "next/font/google";
 import "./globals.css";
 import { TimeProvider } from "@/context/TimeContext";
 import { RangeProvider } from "@/context/RangeContext";
+import { CurrencyProvider } from "@/context/CurrencyContext";
 
 const geistSans = Geist({
   variable: "--font-geist-sans",
@@ -24,11 +25,13 @@ export default function RootLayout({ children }) {
       <body
         className={`${geistSans.variable} ${geistMono.variable} antialiased`}
       >
-        <TimeProvider>
-          <RangeProvider>
-            {children}
-          </RangeProvider>
-        </TimeProvider>
+        <CurrencyProvider>
+          <TimeProvider>
+            <RangeProvider>
+              {children}
+            </RangeProvider>
+          </TimeProvider>
+        </CurrencyProvider>
       </body>
     </html>
   );

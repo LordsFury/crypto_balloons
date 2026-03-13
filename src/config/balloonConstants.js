@@ -133,4 +133,4 @@ export const INERTIA_TIME_CONSTANT = 800;
 
 // Hard boundary walls
 export const WALL_BOUNDARY = 10; // Distance from screen edge (hard wall)
-export const NAVBAR_HEIGHT = 48; // Top navbar height to account for
+export const NAVBAR_HEIGHT = 20; // Top navbar height to account for (h-16=64px + h-1=4px + buffer)

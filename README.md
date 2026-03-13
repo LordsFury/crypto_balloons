@@ -18,6 +18,15 @@ Open [http://localhost:3000](http://localhost:3000) with your browser to see the
 
 You can start editing the page by modifying `app/page.js`. The page auto-updates as you edit the file.
 
+## Environment Variables
+
+Set these variables before using the currency selector and conversion feature:
+
+```bash
+NEXT_PUBLIC_EXCHANGE_RATE_API_URL=https://open.er-api.com/v6/latest/USD
+NEXT_PUBLIC_FLAG_ICON_BASE_URL=https://flagcdn.com/w40
+```
+
 This project uses [`next/font`](https://nextjs.org/docs/app/building-your-application/optimizing/fonts) to automatically optimize and load [Geist](https://vercel.com/font), a new font family for Vercel.
 
 ## Learn More
