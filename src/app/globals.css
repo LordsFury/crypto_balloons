@@ -31,16 +31,42 @@ body {
 
 .balloon-float {
   will-change: transform;
-  animation: floatBalloon ease-in-out infinite;
+  transform-origin: 50% 85%;
+  animation: floatBalloon cubic-bezier(0.42, 0.05, 0.18, 0.98) infinite;
 }
 
-/* 4-stage organic float: slight arc + subtle breathe makes balloons feel alive */
+/* Multi-stage buoyancy path: gentle rise, side sway, and eased descent */
 @keyframes floatBalloon {
-  0%   { transform: translate(0,                              0)                             rotate(0deg)                          scale(1);    }
-  25%  { transform: translate(calc(var(--float-x) * 0.6),    calc(var(--float-y) * -0.4))   rotate(calc(var(--rotate) * 0.4))     scale(1.01); }
-  50%  { transform: translate(var(--float-x),                calc(var(--float-y) * -1))      rotate(var(--rotate))                 scale(1.02); }
-  75%  { transform: translate(calc(var(--float-x) * 0.6),    calc(var(--float-y) * -0.4))   rotate(calc(var(--rotate) * 0.4))     scale(1.01); }
-  100% { transform: translate(0,                              0)                             rotate(0deg)                          scale(1);    }
+  0% {
+    transform: translate3d(0, 0, 0) rotate(calc(var(--rotate) * -0.12)) scale(0.996);
+  }
+  12% {
+    transform: translate3d(calc(var(--float-x) * 0.18), calc(var(--float-y) * -0.18), 0)
+      rotate(calc(var(--rotate) * 0.15)) scale(1.002);
+  }
+  26% {
+    transform: translate3d(calc(var(--float-x) * 0.52), calc(var(--float-y) * -0.46), 0)
+      rotate(calc(var(--rotate) * 0.42)) scale(1.01);
+  }
+  41% {
+    transform: translate3d(calc(var(--float-x) * 0.88), calc(var(--float-y) * -0.9), 0)
+      rotate(calc(var(--rotate) * 0.94)) scale(1.018);
+  }
+  56% {
+    transform: translate3d(calc(var(--float-x) * 0.7), calc(var(--float-y) * -0.72), 0)
+      rotate(calc(var(--rotate) * 0.55)) scale(1.012);
+  }
+  72% {
+    transform: translate3d(calc(var(--float-x) * 0.35), calc(var(--float-y) * -0.36), 0)
+      rotate(calc(var(--rotate) * 0.2)) scale(1.006);
+  }
+  86% {
+    transform: translate3d(calc(var(--float-x) * 0.08), calc(var(--float-y) * -0.1), 0)
+      rotate(calc(var(--rotate) * -0.08)) scale(1.001);
+  }
+  100% {
+    transform: translate3d(0, 0, 0) rotate(calc(var(--rotate) * -0.12)) scale(0.996);
+  }
 }
 
 /* Smooth cursor transitions */

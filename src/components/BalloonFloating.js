@@ -10,6 +10,7 @@ import { balloonPositionManager } from "@/utils/balloonPositionManager";
 import { 
   BASE_SIZE, 
   OPACITY_TRANSITION_DURATION, 
+  MOBILE_BREAKPOINT,
 } from "@/config/balloonConstants";
 
 // Constant animation configs — extracted outside component to prevent object recreation
@@ -22,6 +23,12 @@ const EXIT_ANIM = { opacity: 0 };
 
 // Collision tuning for the dragged balloon
 const DRAG_COLLISION_RATIO = 0.3;  // visual radius ≈ 30% of bounding box (SVG body fills ~60%)
+const MOBILE_DRAG_COLLISION_RATIO = 0.22;
+const DRAG_PUSH_RAMP_FRAMES = 15;
+const MOBILE_DRAG_PUSH_RAMP_FRAMES = 26;
+const DRAG_COLLISION_PUSH_SCALE = 0.5;
+const MOBILE_DRAG_COLLISION_PUSH_SCALE = 0.3;
+const MOBILE_OVERLAP_DEADZONE_PX = 6;
 const DRAG_LERP = 0.10;
 // SVG bounding-box transparent padding fractions (balloon body < full viewBox 4001)
 const SVG_PAD_SIDE   = 0.20;   // permissive: allows visual body to reach screen edge
@@ -128,13 +135,19 @@ const BalloonFloating = ({
     // Push other balloons out of the way
     const allBalloons = document.querySelectorAll('[data-balloon-id]');
     const cRect = containerRef?.current?.getBoundingClientRect();
+    const isMobile = typeof window !== "undefined" && window.innerWidth < MOBILE_BREAKPOINT;
+    const collisionRatio = isMobile ? MOBILE_DRAG_COLLISION_RATIO : DRAG_COLLISION_RATIO;
+    const pushRampFrames = isMobile ? MOBILE_DRAG_PUSH_RAMP_FRAMES : DRAG_PUSH_RAMP_FRAMES;
+    const pushScale = isMobile ? MOBILE_DRAG_COLLISION_PUSH_SCALE : DRAG_COLLISION_PUSH_SCALE;
+    const overlapDeadzone = isMobile ? MOBILE_OVERLAP_DEADZONE_PX : 0;
+
     for (const el of allBalloons) {
       if (el === myEl) continue;
 
       const oRect = el.getBoundingClientRect();
       const oCX = oRect.left + oRect.width / 2;
       const oCY = oRect.top + oRect.height / 2;
-      const minDist = (size + oRect.width) * DRAG_COLLISION_RATIO;
+      const minDist = (size + oRect.width) * collisionRatio;
 
       const dx = newCX - oCX;
       const dy = newCY - oCY;
@@ -143,9 +156,11 @@ const BalloonFloating = ({
       if (distSq < minDist * minDist && distSq > 1) {
         const dist = Math.sqrt(distSq);
         const overlap = minDist - dist;
-        // Ramp push force over first 15 frames so collisions don't jolt on drag start
-        const ramp = Math.min(1, dragFrameRef.current / 15);
-        const softOverlap = overlap * ramp * 0.5;
+        // On mobile, use deadzone + slower ramp to avoid instant jumpy pushes.
+        const effectiveOverlap = Math.max(0, overlap - overlapDeadzone);
+        if (effectiveOverlap <= 0) continue;
+        const ramp = Math.min(1, dragFrameRef.current / pushRampFrames);
+        const softOverlap = effectiveOverlap * ramp * pushScale;
         let px = -(dx / dist) * softOverlap;
         let py = -(dy / dist) * softOverlap;
 

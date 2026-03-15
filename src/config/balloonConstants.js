@@ -93,7 +93,6 @@ export const SPRING_CONFIG = {
 export const LOW_PERF_SCREEN_WIDTH = 900;
 export const LOW_PERF_SIZE_THRESHOLD = 120;
 export const MOBILE_BREAKPOINT = 768;
-export const MAX_BALLOONS_MOBILE = 25;
 export const MAX_BALLOONS_DESKTOP = 50;
 
 // Color palette
