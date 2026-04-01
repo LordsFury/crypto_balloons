@@ -27,13 +27,15 @@ const balloonBackgrounds = [
   "/assets/background8.jpeg"
 ];
 
-// Background slideshow as isolated component to prevent Main re-renders every 10s
+// Background slideshow as isolated component to prevent Main re-renders every 2 minutes
 const BackgroundSlideshow = React.memo(function BackgroundSlideshow() {
   const [bgIndex, setBgIndex] = useState(0);
+
   useEffect(() => {
     const interval = setInterval(() => {
       setBgIndex((prev) => (prev + 1) % balloonBackgrounds.length);
-    }, 10000);
+    }, 120000);
+
     return () => clearInterval(interval);
   }, []);
 
@@ -46,10 +48,23 @@ const BackgroundSlideshow = React.memo(function BackgroundSlideshow() {
         width: "100vw",
         height: "100vh",
         zIndex: 0,
-        background: `url(${balloonBackgrounds[bgIndex]}) center/cover no-repeat`,
-        transition: "background-image 1s ease-in-out"
+        overflow: "hidden"
       }}
-    />
+    >
+      {balloonBackgrounds.map((bg, index) => (
+        <div
+          key={bg}
+          style={{
+            position: "absolute",
+            inset: 0,
+            background: `url(${bg}) center/cover no-repeat`,
+            opacity: index === bgIndex ? 1 : 0,
+            transition: "opacity 1.2s ease-in-out",
+            willChange: "opacity"
+          }}
+        />
+      ))}
+    </div>
   );
 });
 

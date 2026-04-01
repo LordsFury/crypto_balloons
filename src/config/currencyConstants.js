@@ -23,8 +23,6 @@ export const CURRENCY_OPTIONS = Object.freeze([
   { value: "CAD", label: "Canadian Dollar", symbol: "C$", country: "CA" },
   { value: "AUD", label: "Australian Dollar", symbol: "A$", country: "AU" },
   { value: "CHF", label: "Swiss Franc", symbol: "CHF", country: "CH" },
-  { value: "AED", label: "UAE Dirham", symbol: "د.إ", country: "AE" },
-  { value: "SAR", label: "Saudi Riyal", symbol: "﷼", country: "SA" },
   { value: "TRY", label: "Turkish Lira", symbol: "₺", country: "TR" },
   { value: "ZAR", label: "South African Rand", symbol: "R", country: "ZA" },
 ]);
