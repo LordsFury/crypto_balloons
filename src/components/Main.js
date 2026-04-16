@@ -17,14 +17,21 @@ import { RESET_POSITIONS_ON_TIME_CHANGE, BASE_SIZE } from "@/config/balloonConst
  */
 // Background images for slideshow
 const balloonBackgrounds = [
-  "/assets/background1.jpeg",
-  "/assets/background2.jpeg",
-  "/assets/background3.jpeg",
-  "/assets/background4.jpeg",
-  "/assets/background5.jpeg",
-  "/assets/background6.jpeg",
-  "/assets/backgroud7.jpeg",
-  "/assets/background8.jpeg"
+  "/assets/background-01.jpg",
+  "/assets/background-02.jpg",
+  "/assets/background-03.jpg",
+  "/assets/background-04.png",
+  "/assets/background-05.jpg",
+  "/assets/background-06.png",
+  "/assets/background-07.jpg",
+  "/assets/background-08.jpg",
+  "/assets/background-09.jpg",
+  "/assets/background-10.jpg",
+  "/assets/background-11.avif",
+  "/assets/background-12.avif",
+  "/assets/background-13.avif",
+  "/assets/background-14.jpg",
+  "/assets/background-15.jpg"
 ];
 
 // Background slideshow as isolated component to prevent Main re-renders every 2 minutes
