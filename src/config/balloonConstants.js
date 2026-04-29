@@ -13,35 +13,27 @@ export const BASE_SIZE = 200; // Reference size for calculations
 // Wider ranges and aggressive scaling for clear visual differences
 export const TIME_PERIOD_SIZING = {
   "1h": {
-    // 1h: Small changes need VERY aggressive scaling to show differences
     minSize: 120,
     maxSize: 220,
-    // Aggressive power to really spread values
     scalingPower: 0.3,
     useLogarithmic: false,
-    // 50% rank-based, 50% value-based for better distribution
     rankWeight: 0.5
   },
   "24h": {
-    // 24h: Good range with cubic root scaling
     minSize: 120,
     maxSize: 220,
-    // Cubic root for more spread
     scalingPower: 0.4,
     useLogarithmic: false,
     rankWeight: 0.4
   },
   "7d": {
-    // 7d: Wide range with square root
     minSize: 110,
     maxSize: 230,
-    // Square root scaling
     scalingPower: 0.5,
     useLogarithmic: false,
     rankWeight: 0.3
   },
   "30d": {
-    // 30d: Log + aggressive power for extreme variation
     minSize: 100,
     maxSize: 210,
     scalingPower: 0.35,
@@ -49,7 +41,6 @@ export const TIME_PERIOD_SIZING = {
     rankWeight: 0.3
   },
   "1y": {
-    // 1y: Strong log with aggressive power
     minSize: 100,
     maxSize: 220,
     scalingPower: 0.4,
@@ -94,6 +85,63 @@ export const LOW_PERF_SCREEN_WIDTH = 900;
 export const LOW_PERF_SIZE_THRESHOLD = 120;
 export const MOBILE_BREAKPOINT = 768;
 export const MAX_BALLOONS_DESKTOP = 50;
+
+const LAYOUT_BASELINE = {
+  width: 1366,
+  height: 768
+};
+
+const clamp = (value, min, max) => Math.min(max, Math.max(min, value));
+
+/**
+ * Get screen-aware sizing configuration
+ * Keeps laptop sizing stable, then increases sizes gradually on larger or more extreme screens.
+ * @param {string} timeKey - Time period key ("1h", "24h", etc.)
+ * @param {number} screenWidth - Current screen width in pixels
+ * @param {number} screenHeight - Current screen height in pixels
+ * @returns {Object} - Adjusted sizing configuration
+ */
+export const getScreenAdjustedSizing = (timeKey, screenWidth, screenHeight) => {
+  const baseSizing = TIME_PERIOD_SIZING[timeKey] || TIME_PERIOD_SIZING["24h"];
+
+  if (!screenWidth || !screenHeight) {
+    return { ...baseSizing };
+  }
+
+  if (screenWidth <= 1024 && screenHeight <= 768) {
+    return { ...baseSizing };
+  }
+
+  const widthExcess = clamp((screenWidth - LAYOUT_BASELINE.width) / 900, 0, 1);
+  const heightExcess = clamp((screenHeight - LAYOUT_BASELINE.height) / 600, 0, 1);
+  const areaRatio = Math.sqrt((screenWidth * screenHeight) / (LAYOUT_BASELINE.width * LAYOUT_BASELINE.height));
+  const areaExcess = clamp(areaRatio - 1, 0, 1);
+  const aspectRatio = screenWidth / screenHeight;
+  const aspectBoost = aspectRatio > 1.85
+    ? clamp((aspectRatio - 1.85) * 0.025, 0, 0.025)
+    : aspectRatio < 0.8
+      ? clamp((0.8 - aspectRatio) * 0.03, 0, 0.025)
+      : 0;
+
+  const sizeBoost = clamp(
+    (widthExcess * 0.045) +
+    (heightExcess * 0.045) +
+    (areaExcess * 0.055) +
+    aspectBoost,
+    0,
+    0.11
+  );
+
+  const minScale = 1 + (sizeBoost * 0.45);
+  const maxScale = 1 + sizeBoost;
+  const visibleMinFloor = screenWidth < 1200 ? 128 : screenWidth < 1600 ? 132 : 136;
+
+  return {
+    ...baseSizing,
+    minSize: Math.max(Math.round(baseSizing.minSize * minScale), visibleMinFloor),
+    maxSize: Math.round(baseSizing.maxSize * maxScale)
+  };
+};
 
 // Color palette
 export const BALLOON_COLORS = [
