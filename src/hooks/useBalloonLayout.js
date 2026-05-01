@@ -64,7 +64,7 @@ export const useBalloonLayout = (coins, time) => {
     if (!W || !H) return;
 
     const timeKey = TIME_PERIOD_MAP[timeRef.current];
-    const sizeMapper = createSizeMapper(coinsList, timeKey);
+    const sizeMapper = createSizeMapper(coinsList, timeKey, W, H);
     
     const availableH = H - NAVBAR_HEIGHT;
     const { cols, spacingX, spacingY } = calculateGridLayout(
@@ -120,7 +120,7 @@ export const useBalloonLayout = (coins, time) => {
     if (!layoutRef.current.length) return;
 
     const timeKey = TIME_PERIOD_MAP[time];
-    const sizeMapper = createSizeMapper(coinsList, timeKey);
+    const sizeMapper = createSizeMapper(coinsList, timeKey, screenDims.w, screenDims.h);
 
     layoutRef.current.forEach(balloon => {
       const percent = Math.abs(
@@ -130,7 +130,7 @@ export const useBalloonLayout = (coins, time) => {
     });
 
     setBalloons([...layoutRef.current]);
-  }, [time]);
+  }, [time, screenDims.w, screenDims.h]);
 
   // Merge live coin data into existing balloons without regenerating layout.
   // Updates each balloon's coin reference and recalculates sizes so springs
@@ -140,7 +140,7 @@ export const useBalloonLayout = (coins, time) => {
 
     const coinMap = new Map(coinsList.map(c => [c.id, c]));
     const timeKey = TIME_PERIOD_MAP[time];
-    const sizeMapper = createSizeMapper(coinsList, timeKey);
+    const sizeMapper = createSizeMapper(coinsList, timeKey, screenDims.w, screenDims.h);
 
     let changed = false;
     layoutRef.current.forEach(balloon => {
@@ -154,7 +154,7 @@ export const useBalloonLayout = (coins, time) => {
     });
 
     if (changed) setBalloons([...layoutRef.current]);
-  }, [time]);
+  }, [time, screenDims.w, screenDims.h]);
 
   return {
     balloons,

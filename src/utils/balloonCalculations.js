@@ -1,4 +1,4 @@
-import { TIME_PERIOD_SIZING, MOBILE_BREAKPOINT, BALLOON_COLORS } from "@/config/balloonConstants";
+import { MOBILE_BREAKPOINT, BALLOON_COLORS, getScreenAdjustedSizing } from "@/config/balloonConstants";
 
 /**
  * Parse range string into min and max values
@@ -18,11 +18,12 @@ export const parseRange = (range) => {
  * Uses hybrid rank + value based approach for maximum size variation
  * @param {Array} coins - Array of coin objects
  * @param {string} timeKey - Time period key for percent change ("1h", "24h", etc.)
+ * @param {number} screenWidth - Current screen width in pixels
+ * @param {number} screenHeight - Current screen height in pixels
  * @returns {Function} - Function that maps percent value to balloon size
  */
-export const createSizeMapper = (coins, timeKey) => {
-  // Get time-period specific configuration
-  const config = TIME_PERIOD_SIZING[timeKey] || TIME_PERIOD_SIZING["24h"];
+export const createSizeMapper = (coins, timeKey, screenWidth = 1600, screenHeight = 900) => {
+  const config = getScreenAdjustedSizing(timeKey, screenWidth, screenHeight);
   const { minSize, maxSize, scalingPower, useLogarithmic, rankWeight } = config;
   
   // Extract absolute percent changes with coin reference
