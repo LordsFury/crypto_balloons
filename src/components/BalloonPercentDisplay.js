@@ -16,7 +16,8 @@ const BalloonPercentDisplay = ({ displayPercent, percentY, size }) => {
   const bgRadiusY = Math.max(170, Math.min(220, size * 0.85));
   const bgInnerRadiusX = bgRadiusX * 0.87;
   const bgInnerRadiusY = bgRadiusY * 0.75;
-  const fontSize = Math.max(200, Math.min(240, size * 0.9));
+  // Increase percent text baseline for improved legibility
+  const fontSize = Math.max(220, Math.min(320, Math.round(size * 1.0)));
 
   return (
     <g style={{ pointerEvents: 'none' }}>

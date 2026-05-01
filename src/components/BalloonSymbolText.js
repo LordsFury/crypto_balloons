@@ -8,8 +8,8 @@ const BalloonSymbolText = ({ symbol, symbolY, size }) => {
   // Parent component handles conditional rendering
   if (!symbol) return null;
 
-  // Calculate font size based on balloon size
-  const fontSize = Math.max(220, Math.min(280, size * 1.15));
+  // Calculate font size based on balloon size — increase baseline for readability
+  const fontSize = Math.max(260, Math.min(340, Math.round(size * 1.2)));
 
   return (
     <text
