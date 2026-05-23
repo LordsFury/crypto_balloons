@@ -6,6 +6,7 @@ import Link from 'next/link';
 import { TIME_PERIOD_MAP } from "@/config/balloonConstants";
 import { useTime } from "@/context/TimeContext";
 import { useCurrency } from "@/context/CurrencyContext";
+import { useMarket } from "@/context/MarketContext";
 import useExchangeRates from "@/hooks/useExchangeRates";
 import {
   convertUsdAmount,
@@ -13,6 +14,22 @@ import {
   getCurrencySymbol,
   getResolvedCurrencyCode,
 } from "@/utils/currency";
+
+function getApiBaseUrl() {
+  return process.env.NEXT_PUBLIC_CRYPTO_DATA_URL || "";
+}
+
+function toProxyLogoUrl(imageSrc, label) {
+  if (!imageSrc) return null;
+  if (/^(data:|blob:|\/)/i.test(imageSrc)) return imageSrc;
+  if (!/^https?:\/\//i.test(imageSrc)) return imageSrc;
+
+  if (!/clearbit\.com/i.test(imageSrc)) {
+    return imageSrc;
+  }
+  const proxyPath = `/api/logo-proxy?url=${encodeURIComponent(imageSrc)}&label=${encodeURIComponent(label || "")}`;
+  return `${getApiBaseUrl()}${proxyPath}`;
+}
 
 const AnimatedNumber = ({ value, isPercentage = false }) => {
   const spring = useSpring(0, { stiffness: 100, damping: 30 });
@@ -37,6 +54,7 @@ const Modal = ({ selectedCoin, closePopup }) => {
 
   const { time } = useTime();
   const { currency } = useCurrency();
+  const { marketType } = useMarket();
   const { rates } = useExchangeRates();
   const resolvedCurrencyCode = getResolvedCurrencyCode(currency, rates);
 
@@ -95,10 +113,10 @@ const Modal = ({ selectedCoin, closePopup }) => {
               <div className="absolute bottom-0 left-0 w-48 h-48 bg-white/5 rounded-full blur-3xl"></div>
               
               <div className="relative flex items-start gap-5">
-                {selectedCoin.image && (
+                {(selectedCoin.image || selectedCoin.logo || selectedCoin.logo_url) && (
                   <div>
                     <img
-                      src={selectedCoin.image}
+                      src={toProxyLogoUrl(selectedCoin.image || selectedCoin.logo || selectedCoin.logo_url, selectedCoin.symbol || selectedCoin.id)}
                       alt={selectedCoin.id}
                       className="w-16 h-16 rounded-full bg-white p-2 shadow-xl ring-4 ring-white/20"
                     />
@@ -219,26 +237,47 @@ const Modal = ({ selectedCoin, closePopup }) => {
                   View on Platforms
                 </h3>
                 <div className="flex justify-center gap-4">
-                  {[
-                    { 
-                      href: `https://www.coingecko.com/en/coins/${selectedCoin.id}`,
-                      icon: "/assets/coingecko.png",
-                      alt: "CoinGecko",
-                      color: "from-green-400 to-emerald-500"
-                    },
-                    { 
-                      href: `https://coinmarketcap.com/currencies/${selectedCoin.id}/`,
-                      icon: "/assets/cmc.png",
-                      alt: "CoinMarketCap",
-                      color: "from-blue-400 to-indigo-500"
-                    },
-                    { 
-                      href: `https://www.tradingview.com/chart/?symbol=${selectedCoin.symbol}USDT`,
-                      icon: "/assets/trading.png",
-                      alt: "TradingView",
-                      color: "from-gray-400 to-gray-500"
-                    }
-                  ].map((link) => (
+                  {(marketType === "stocks"
+                    ? [
+                        {
+                          href: `https://finance.yahoo.com/quote/${selectedCoin.symbol}`,
+                          icon: "/assets/trading.png",
+                          alt: "Yahoo Finance",
+                          color: "from-slate-500 to-slate-700"
+                        },
+                        {
+                          href: `https://www.tradingview.com/symbols/${selectedCoin.symbol}/`,
+                          icon: "/assets/trading.png",
+                          alt: "TradingView",
+                          color: "from-gray-400 to-gray-500"
+                        },
+                        selectedCoin.website ? {
+                          href: selectedCoin.website,
+                          icon: "/assets/coingecko.png",
+                          alt: "Company Website",
+                          color: "from-blue-400 to-cyan-500"
+                        } : null
+                      ].filter(Boolean)
+                    : [
+                        {
+                          href: `https://www.coingecko.com/en/coins/${selectedCoin.id}`,
+                          icon: "/assets/coingecko.png",
+                          alt: "CoinGecko",
+                          color: "from-green-400 to-emerald-500"
+                        },
+                        {
+                          href: `https://coinmarketcap.com/currencies/${selectedCoin.id}/`,
+                          icon: "/assets/cmc.png",
+                          alt: "CoinMarketCap",
+                          color: "from-blue-400 to-indigo-500"
+                        },
+                        {
+                          href: `https://www.tradingview.com/chart/?symbol=${selectedCoin.symbol}USDT`,
+                          icon: "/assets/trading.png",
+                          alt: "TradingView",
+                          color: "from-gray-400 to-gray-500"
+                        }
+                      ]).map((link) => (
                     <Link
                       key={link.alt}
                       href={link.href}

@@ -15,18 +15,21 @@ import {
  * @returns {Object} - Spring values for scale and position
  */
 export const useBalloonSpring = (x, y, size) => {
-  const targetScale = useMemo(() => size / BASE_SIZE, [size]);
+  const safeSize = Number.isFinite(size) && size > 0 ? size : BASE_SIZE;
+  const safeX = Number.isFinite(x) ? x : 0;
+  const safeY = Number.isFinite(y) ? y : 0;
+  const targetScale = useMemo(() => safeSize / BASE_SIZE, [safeSize]);
 
   const isLowPerf = useMemo(() => {
     if (typeof window === "undefined") return false;
-    return window.innerWidth < LOW_PERF_SCREEN_WIDTH || size < LOW_PERF_SIZE_THRESHOLD;
-  }, [size]);
+    return window.innerWidth < LOW_PERF_SCREEN_WIDTH || safeSize < LOW_PERF_SIZE_THRESHOLD;
+  }, [safeSize]);
 
   const config = isLowPerf ? SPRING_CONFIG.lowPerf : SPRING_CONFIG.highPerf;
 
   const scale = useSpring(targetScale, config.scale);
-  const posX = useSpring(x, config.position);
-  const posY = useSpring(y, config.position);
+  const posX = useSpring(safeX, config.position);
+  const posY = useSpring(safeY, config.position);
 
   // Update springs when values change
   useEffect(() => {
@@ -34,12 +37,12 @@ export const useBalloonSpring = (x, y, size) => {
   }, [targetScale, scale]);
 
   useEffect(() => {
-    posX.set(x);
-  }, [x, posX]);
+    posX.set(safeX);
+  }, [safeX, posX]);
 
   useEffect(() => {
-    posY.set(y);
-  }, [y, posY]);
+    posY.set(safeY);
+  }, [safeY, posY]);
 
   return { scale, posX, posY };
 };

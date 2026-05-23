@@ -55,6 +55,9 @@ const BalloonFloating = ({
   containerRef,
 }) => {
   const elRef = useRef(null);
+  const safeSize = Number.isFinite(size) && size > 0 ? size : BASE_SIZE;
+  const safeX = Number.isFinite(x) ? x : 0;
+  const safeY = Number.isFinite(y) ? y : 0;
   
   // Use ref instead of state to avoid re-renders on collision pushes
   const persistentOffsetRef = useRef({ x: 0, y: 0 });
@@ -84,7 +87,7 @@ const BalloonFloating = ({
     handleDragStart: baseDragStart,
   } = useBalloonDrag(onBalloonClick, zIndexMV);
   
-  const { scale, posX, posY } = useBalloonSpring(x, y, size);
+  const { scale, posX, posY } = useBalloonSpring(safeX, safeY, safeSize);
   
   // Imperative collision start/stop (no isDragging state dependency)
   const { startCollision, stopCollision } = useBalloonCollision(elRef, coin?.id);
@@ -116,8 +119,8 @@ const BalloonFloating = ({
     dragStartOffsetRef.current = { x: sx, y: sy };
     dragTargetRef.current      = { x: sx, y: sy };
     // Lift: scale up slightly like picking up a balloon (spring animates smoothly)
-    scale.set(size / BASE_SIZE * 1.08);
-  }, [baseDragStart, startCollision, motionX, motionY, scale, size]);
+    scale.set(safeSize / BASE_SIZE * 1.08);
+  }, [baseDragStart, startCollision, motionX, motionY, scale, safeSize]);
 
   // Helper: push other balloons and clamp to container (shared by pan + catch-up)
   // Uses `size` prop directly (not getBoundingClientRect) so all balloon sizes clamp equally.
@@ -147,7 +150,7 @@ const BalloonFloating = ({
       const oRect = el.getBoundingClientRect();
       const oCX = oRect.left + oRect.width / 2;
       const oCY = oRect.top + oRect.height / 2;
-      const minDist = (size + oRect.width) * collisionRatio;
+      const minDist = (safeSize + oRect.width) * collisionRatio;
 
       const dx = newCX - oCX;
       const dy = newCY - oCY;
@@ -188,10 +191,10 @@ const BalloonFloating = ({
     // Clamp using `size` prop so visual balloon body reaches container edges on all sizes
     if (containerRef?.current) {
       const cRect  = containerRef.current.getBoundingClientRect();
-      const hr     = size / 2;                  // visual half-width
-      const vr     = size / 2;                  // visual half-height (balloons are square)
-      const padX   = size * SVG_PAD_SIDE;       // SVG transparent side padding
-      const padBot = size * SVG_PAD_BOTTOM;     // SVG transparent bottom padding
+      const hr     = safeSize / 2;              // visual half-width
+      const vr     = safeSize / 2;              // visual half-height (balloons are square)
+      const padX   = safeSize * SVG_PAD_SIDE;    // SVG transparent side padding
+      const padBot = safeSize * SVG_PAD_BOTTOM;  // SVG transparent bottom padding
       newCX = Math.max(cRect.left   + hr - padX,   Math.min(cRect.right  - hr + padX,   newCX));
       newCY = Math.max(cRect.top    + vr,           Math.min(cRect.bottom - vr + padBot, newCY));
     }
@@ -200,7 +203,7 @@ const BalloonFloating = ({
     const actualDY = newCY - myCY;
     motionX.set(motionX.get() + actualDX);
     motionY.set(motionY.get() + actualDY);
-  }, [motionX, motionY, containerRef, size]);
+  }, [motionX, motionY, containerRef, safeSize]);
   // Pan move: update target, lerp toward it (balloon follows pointer smoothly)
   const handlePan = useCallback((event, info) => {
     // Raw target = start offset + total pointer offset
@@ -213,10 +216,10 @@ const BalloonFloating = ({
       if (myEl) {
         const myRect = myEl.getBoundingClientRect();
         const cRect  = containerRef.current.getBoundingClientRect();
-        const hr     = size / 2;
-        const vr     = size / 2;
-        const padX   = size * SVG_PAD_SIDE;
-        const padBot = size * SVG_PAD_BOTTOM;
+        const hr     = safeSize / 2;
+        const vr     = safeSize / 2;
+        const padX   = safeSize * SVG_PAD_SIDE;
+        const padBot = safeSize * SVG_PAD_BOTTOM;
         const curCX = myRect.left + myRect.width  / 2;
         const curCY = myRect.top  + myRect.height / 2;
         const cx = motionX.get();
@@ -239,7 +242,7 @@ const BalloonFloating = ({
     const moveY = (ty - cy) * DRAG_LERP;
 
     applyMoveWithCollision(moveX, moveY);
-}, [motionX, motionY, applyMoveWithCollision, containerRef, size]);
+}, [motionX, motionY, applyMoveWithCollision, containerRef, safeSize]);
 
   // Pan end: start catch-up RAF so balloon glides to final pointer position
   const handlePanEnd = useCallback(() => {
@@ -248,7 +251,7 @@ const BalloonFloating = ({
       elRef.current.parentElement?.removeAttribute("data-dragging");
     }
     stopCollision();
-    scale.set(size / BASE_SIZE);
+    scale.set(safeSize / BASE_SIZE);
 
     // Sync manager to current motionX SILENTLY (no listener notify) so any push from
     // another balloon's drag accumulates from the correct position, not the pre-drag value.
@@ -299,7 +302,7 @@ const BalloonFloating = ({
     };
 
     catchUpRafRef.current = requestAnimationFrame(catchUp);
-  }, [motionX, motionY, stopCollision, scale, size]);
+  }, [motionX, motionY, stopCollision, scale, safeSize]);
 
   // Subscribe to position offset changes from the position manager
   useEffect(() => {

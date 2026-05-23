@@ -74,9 +74,11 @@ export const useBalloonLayout = (coins, time) => {
     );
 
     const result = coinsList.map((coin, i) => {
-      const percent = Math.abs(Number(coin[`percent_change_${timeKey}`])) || 0;
+      const percentValue = Number(coin[`percent_change_${timeKey}`]);
+      const percent = Number.isFinite(percentValue) ? Math.abs(percentValue) : 0;
       const total = coinsList.length;
-      const size = sizeMapper(percent, coin);
+      const mappedSize = sizeMapper(percent, coin);
+      const size = Number.isFinite(mappedSize) && mappedSize > 0 ? mappedSize : 180;
       
       // Base grid position (offset below navbar)
       const baseX = (i % cols) * spacingX + spacingX / 2;
@@ -93,8 +95,10 @@ export const useBalloonLayout = (coins, time) => {
       const isMobile = W < MOBILE_BREAKPOINT;
       const sideMargin = isMobile ? size * 0.15 : size / 2;
       const vertMargin = size / 2;
-      const cx = Math.max(sideMargin, Math.min(W - sideMargin, baseX + randomOffsetX));
-      const cy = Math.max(NAVBAR_HEIGHT + vertMargin, Math.min(H - vertMargin, baseY + randomOffsetY));
+      const cxRaw = baseX + randomOffsetX;
+      const cyRaw = baseY + randomOffsetY;
+      const cx = Number.isFinite(cxRaw) ? Math.max(sideMargin, Math.min(W - sideMargin, cxRaw)) : baseX;
+      const cy = Number.isFinite(cyRaw) ? Math.max(NAVBAR_HEIGHT + vertMargin, Math.min(H - vertMargin, cyRaw)) : baseY;
 
       return {
         id: coin.id,
@@ -123,10 +127,10 @@ export const useBalloonLayout = (coins, time) => {
     const sizeMapper = createSizeMapper(coinsList, timeKey, screenDims.w, screenDims.h);
 
     layoutRef.current.forEach(balloon => {
-      const percent = Math.abs(
-        Number(balloon.coin[`percent_change_${timeKey}`]) || 0
-      );
-      balloon.size = sizeMapper(percent, balloon.coin);
+      const percentValue = Number(balloon.coin[`percent_change_${timeKey}`]);
+      const percent = Number.isFinite(percentValue) ? Math.abs(percentValue) : 0;
+      const mappedSize = sizeMapper(percent, balloon.coin);
+      balloon.size = Number.isFinite(mappedSize) && mappedSize > 0 ? mappedSize : balloon.size || 180;
     });
 
     setBalloons([...layoutRef.current]);
@@ -149,8 +153,10 @@ export const useBalloonLayout = (coins, time) => {
       // Always update coin reference so percent/price display refreshes
       if (fresh !== balloon.coin) changed = true;
       balloon.coin = fresh;
-      const percent = Math.abs(Number(fresh[`percent_change_${timeKey}`]) || 0);
-      balloon.size = sizeMapper(percent, fresh);
+      const percentValue = Number(fresh[`percent_change_${timeKey}`]);
+      const percent = Number.isFinite(percentValue) ? Math.abs(percentValue) : 0;
+      const mappedSize = sizeMapper(percent, fresh);
+      balloon.size = Number.isFinite(mappedSize) && mappedSize > 0 ? mappedSize : balloon.size || 180;
     });
 
     if (changed) setBalloons([...layoutRef.current]);

@@ -19,17 +19,18 @@ const Balloon = ({
   onPointerMove, 
   onPointerUp 
 }) => {
+  const safeSize = Number.isFinite(size) && size > 0 ? size : 180;
   // Dynamic content display based on actual balloon size
   // Small balloons: logo only (cleaner look)
   // Larger balloons: logo + symbol + percent
-  const showFullData = size >= LOGO_ONLY_SIZE;
+  const showFullData = safeSize >= LOGO_ONLY_SIZE;
   
   // Calculate element sizes dynamically based on balloon size
   // Logo-only balloons: larger logo (5-6x size) to fill the balloon nicely
   // Full-data balloons: smaller logo (3.4x size) to leave room for text
   const imageSize = showFullData 
-    ? Math.max(380, Math.min(550, size * 3.4))   // Full data: moderate logo size
-    : Math.max(1000, Math.min(1000, size * 5.5));  // Logo only: large, prominent logo
+    ? Math.max(380, Math.min(550, safeSize * 3.4))   // Full data: moderate logo size
+    : Math.max(1000, Math.min(1000, safeSize * 5.5));  // Logo only: large, prominent logo
   const imageX = 2000 - imageSize / 2;
   
   // Adjust vertical positioning based on what we're showing
@@ -46,8 +47,8 @@ const Balloon = ({
 
   return (
     <svg
-      width={size}
-      height={size}
+      width={safeSize}
+      height={safeSize}
       viewBox="0 0 4001 4001"
       vectorEffect="non-scaling-stroke"
       fill={color}
@@ -72,13 +73,13 @@ const Balloon = ({
           <BalloonSymbolText 
             symbol={coin?.symbol} 
             symbolY={symbolY}
-            size={size}
+            size={safeSize}
           />
           <BalloonPercentDisplay 
             displayPercent={displayPercent}
             percentY={percentY}
             coinId={coin?.id}
-            size={size}
+            size={safeSize}
           />
         </>
       )}

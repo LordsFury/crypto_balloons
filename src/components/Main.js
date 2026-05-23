@@ -5,7 +5,8 @@ import BalloonFloating from "./BalloonFloating";
 import Modal from "./Modal";
 import { useTime } from "@/context/TimeContext";
 import { useRange } from "@/context/RangeContext";
-import { useCryptoData } from "@/hooks/useCryptoData";
+import { useMarket } from "@/context/MarketContext";
+import { useMarketData } from "@/hooks/useMarketData";
 import { useBalloonLayout } from "@/hooks/useBalloonLayout";
 import { getSafePosition } from "@/utils/balloonCalculations";
 import { balloonPositionManager } from "@/utils/balloonPositionManager";
@@ -76,21 +77,20 @@ const BackgroundSlideshow = React.memo(function BackgroundSlideshow() {
 });
 
 export default function Main() {
+  const { marketType } = useMarket();
+  return <MarketCanvas key={marketType} marketType={marketType} />;
+}
+
+function MarketCanvas({ marketType }) {
   const [selectedCoin, setSelectedCoin] = useState(null);
   const constraintRef = useRef(null);
-  
   const { time } = useTime();
   const { range } = useRange();
-  
-  // Fetch and filter crypto data (WebSocket primary, HTTP fallback)
-  const { filteredCoins, isLoading } = useCryptoData(range);
-  
-  // Manage balloon layout and positioning
-  const { balloons, generateLayout, updateSizes, updateCoinData, screenDimensions } = 
-    useBalloonLayout(filteredCoins, time);
 
-  // Track whether initial layout has been generated for the current coin set.
-  // Reset when range or screen dimensions change so layout regenerates.
+  const { filteredItems, isLoading } = useMarketData(range, marketType);
+  const { balloons, generateLayout, updateSizes, updateCoinData, screenDimensions } =
+    useBalloonLayout(filteredItems, time);
+
   const layoutReadyRef = useRef(false);
   const prevRangeRef = useRef(range);
   const prevDimsRef = useRef(screenDimensions);
@@ -103,35 +103,33 @@ export default function Main() {
     layoutReadyRef.current = false;
   }
 
-  // First load or range change: generate full layout.
-  // Live data update (same coins, new values): merge into existing layout.
-  // screenDims change: generateLayout identity changes → triggers full relayout.
   useEffect(() => {
-    if (!filteredCoins.length || isLoading) return;
+    layoutReadyRef.current = false;
+    setSelectedCoin(null);
+    balloonPositionManager.resetSilently();
+  }, [marketType]);
+
+  useEffect(() => {
+    if (!filteredItems.length || isLoading) return;
     if (!layoutReadyRef.current) {
-      generateLayout(filteredCoins);
+      generateLayout(filteredItems);
       layoutReadyRef.current = true;
     } else {
-      updateCoinData(filteredCoins);
+      updateCoinData(filteredItems);
     }
-  }, [filteredCoins, isLoading, generateLayout, updateCoinData]);
+  }, [filteredItems, isLoading, generateLayout, updateCoinData, marketType]);
 
-  // Update sizes when time period changes
   useEffect(() => {
     if (!balloons.length) return;
-    updateSizes(filteredCoins);
-  }, [time]);
+    updateSizes(filteredItems);
+  }, [time, filteredItems, updateSizes, balloons.length]);
 
-  // Reset balloon positions when range changes (optional feature)
-  // This gives a fresh layout when switching data views
-  // Uses resetSilently() to prevent jarring back-animation before transition
   useEffect(() => {
     if (RESET_POSITIONS_ON_TIME_CHANGE) {
       balloonPositionManager.resetSilently();
     }
   }, [range]);
 
-  // Reset drag offsets on resize so balloons spring cleanly to new positions
   useEffect(() => {
     if (!screenDimensions.w) return;
     balloonPositionManager.resetSilently();
@@ -139,19 +137,9 @@ export default function Main() {
 
   const closePopup = useCallback(() => setSelectedCoin(null), []);
 
-  if (isLoading) {
-    return (
-      <div className="fixed inset-0 top-12 w-screen h-screen flex items-center justify-center">
-        <div className="text-2xl">Loading balloons...</div>
-      </div>
-    );
-  }
-
-  return (
+  const renderBalloons = () => (
     <div ref={constraintRef} className="fixed inset-0 top-12" style={{ overflow: "hidden" }}>
-      {/* Background slideshow (isolated — won't re-render balloons) */}
       <BackgroundSlideshow />
-      {/* Balloons and modal */}
       <div style={{ position: "relative", zIndex: 1, width: "100%", height: "100%" }}>
         <AnimatePresence>
           {balloons.map((balloon) => {
@@ -175,4 +163,25 @@ export default function Main() {
       </div>
     </div>
   );
+
+  if (isLoading && balloons.length > 0) {
+    return (
+      <>
+        {renderBalloons()}
+        <div className="absolute right-4 top-16 z-20 rounded-full bg-black/40 px-3 py-1 text-xs font-semibold text-white/90 backdrop-blur-md">
+          Switching to {marketType}...
+        </div>
+      </>
+    );
+  }
+
+  if (isLoading) {
+    return (
+      <div className="fixed inset-0 top-12 w-screen h-screen flex items-center justify-center">
+        <div className="text-2xl">Loading {marketType} balloons...</div>
+      </div>
+    );
+  }
+
+  return renderBalloons();
 }

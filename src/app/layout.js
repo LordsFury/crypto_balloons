@@ -3,6 +3,7 @@ import "./globals.css";
 import { TimeProvider } from "@/context/TimeContext";
 import { RangeProvider } from "@/context/RangeContext";
 import { CurrencyProvider } from "@/context/CurrencyContext";
+import { MarketProvider } from "@/context/MarketContext";
 import { getSiteUrl } from "@/lib/seo";
 
 const geistSans = Geist({
@@ -92,11 +93,13 @@ export default function RootLayout({ children }) {
         className={`${geistSans.variable} ${geistMono.variable} antialiased`}
       >
         <CurrencyProvider>
-          <TimeProvider>
-            <RangeProvider>
-              {children}
-            </RangeProvider>
-          </TimeProvider>
+          <MarketProvider>
+            <TimeProvider>
+              <RangeProvider>
+                {children}
+              </RangeProvider>
+            </TimeProvider>
+          </MarketProvider>
         </CurrencyProvider>
       </body>
     </html>

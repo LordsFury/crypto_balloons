@@ -2,6 +2,7 @@
 import { useRange } from "@/context/RangeContext";
 import { useTime } from "@/context/TimeContext";
 import { useCurrency } from "@/context/CurrencyContext";
+import { useMarket } from "@/context/MarketContext";
 import React, { useState, useEffect, useRef } from "react";
 import { FiMenu, FiX, FiChevronDown } from "react-icons/fi";
 import { motion, AnimatePresence } from "framer-motion";
@@ -13,6 +14,7 @@ const Navbar = () => {
   const { time, setTime } = useTime();
   const { range, setRange } = useRange();
   const { currency, setCurrency } = useCurrency();
+  const { marketType, setMarketType } = useMarket();
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
   const [rangeDropdownOpen, setRangeDropdownOpen] = useState(false);
   const dropdownRef = useRef(null);
@@ -47,6 +49,11 @@ const Navbar = () => {
 
   const currentRangeLabel = rangeOptions.find(o => o.value === range)?.label || range;
 
+  const marketOptions = [
+    { value: "crypto", label: "Crypto" },
+    { value: "stocks", label: "Stocks" }
+  ];
+
   return (
     <nav className="w-full bg-linear-to-r from-purple-900 via-purple-600 to-blue-900 shadow-2xl fixed top-0 left-0 z-50">
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
@@ -62,6 +69,27 @@ const Navbar = () => {
                 BALLOONS
               </span>
             </div>
+          </div>
+          <div className="hidden md:flex items-center rounded-2xl bg-white/10 backdrop-blur-md p-1 shadow-lg border border-white/10">
+            {marketOptions.map((option) => {
+              const active = marketType === option.value;
+              return (
+                <button
+                  key={option.value}
+                  onClick={() => setMarketType(option.value)}
+                  className={`relative px-4 py-2 rounded-xl text-sm font-semibold transition-all duration-300 cursor-pointer ${active ? "text-purple-950" : "text-white/80 hover:text-white"}`}
+                >
+                  {active && (
+                    <motion.div
+                      layoutId="market-toggle-pill"
+                      className="absolute inset-0 rounded-xl bg-white shadow-md"
+                      transition={{ type: "spring", stiffness: 450, damping: 30 }}
+                    />
+                  )}
+                  <span className="relative z-10">{option.label}</span>
+                </button>
+              );
+            })}
           </div>
           {/* Desktop Controls */}
           <div className="hidden lg:flex items-center space-x-6">
@@ -153,6 +181,26 @@ const Navbar = () => {
               className="lg:hidden"
             >
               <div className="py-4 pr-1 space-y-4 border-t border-white/20 max-h-[calc(100vh-4.5rem)] overflow-y-auto">
+                <div>
+                  <label className="text-white/70 text-sm font-medium block mb-2">Market</label>
+                  <div className="grid grid-cols-2 gap-2">
+                    {marketOptions.map((option) => {
+                      const active = marketType === option.value;
+                      return (
+                        <button
+                          key={option.value}
+                          onClick={() => { setMarketType(option.value); setMobileMenuOpen(false); }}
+                          className={`py-2 rounded-lg text-sm font-semibold transition-all ${active
+                            ? "bg-white text-purple-900 shadow-md"
+                            : "bg-white/10 text-white/80 hover:bg-white/20"
+                            }`}
+                        >
+                          {option.label}
+                        </button>
+                      );
+                    })}
+                  </div>
+                </div>
                 {/* Range Selection */}
                 <div>
                   <label className="text-white/70 text-sm font-medium block mb-2">Rank Range</label>
